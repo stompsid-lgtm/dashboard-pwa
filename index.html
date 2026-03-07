@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#16213e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>北3區業績 Dashboard</title>
+<link rel="manifest" href="./manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+/* ===== CSS 變數：深色主題 ===== */
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-card: #1f2b45;
+  --bg-input: #253354;
+  --text-primary: #e0e0e0;
+  --text-secondary: #8892a4;
+  --text-accent: #4fc3f7;
+  --border: #2a3a5c;
+  --accent: #4fc3f7;
+  --accent2: #81c784;
+  --accent3: #ffb74d;
+  --accent4: #e57373;
+  --radius: 12px;
+  --shadow: 0 4px 12px rgba(0,0,0,.3);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: -apple-system, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+a { color: var(--accent); }
+
+/* ===== 頂部標題列 ===== */
+.header {
+  background: var(--bg-secondary);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.header h1 { font-size: 1.1rem; font-weight: 600; }
+.header .updated { font-size: .75rem; color: var(--text-secondary); }
+
+/* ===== 桌機篩選列 ===== */
+.filter-bar {
+  display: none;
+  background: var(--bg-secondary);
+  padding: 10px 16px;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+.filter-bar label { font-size: .8rem; color: var(--text-secondary); white-space: nowrap; }
+.filter-bar select, .filter-bar input[type="date"] {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: .85rem;
+}
+.filter-bar .quick-btns { display: flex; gap: 6px; }
+.filter-bar .quick-btns button {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: .8rem;
+  cursor: pointer;
+  transition: all .2s;
+}
+.filter-bar .quick-btns button:hover,
+.filter-bar .quick-btns button.active {
+  background: var(--accent);
+  color: #111;
+  border-color: var(--accent);
+}
+
+/* ===== Chip 篩選樣式 ===== */
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: .8rem;
+  cursor: pointer;
+  transition: all .2s;
+  user-select: none;
+}
+.chip.active {
+  background: var(--accent);
+  color: #111;
+  border-color: var(--accent);
+}
+
+/* ===== 手機 bottom-sheet ===== */
+.bottom-sheet-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 200;
+  opacity: 0;
+  transition: opacity .3s;
+}
+.bottom-sheet-overlay.show { opacity: 1; }
+.bottom-sheet {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--bg-secondary);
+  border-radius: 16px 16px 0 0;
+  z-index: 201;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.bottom-sheet.show { transform: translateY(0); }
+.bottom-sheet .handle {
+  width: 40px; height: 4px;
+  background: var(--text-secondary);
+  border-radius: 2px;
+  margin: 10px auto;
+}
+.bottom-sheet .sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.bottom-sheet .sheet-header h3 { font-size: 1rem; }
+.bottom-sheet .sheet-header button {
+  background: var(--accent);
+  color: #111;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.bottom-sheet .sheet-body { padding: 16px; }
+.bottom-sheet .sheet-body .filter-section { margin-bottom: 16px; }
+.bottom-sheet .sheet-body .filter-section h4 {
+  font-size: .85rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+/* 手機篩選觸發按鈕 */
+.mobile-filter-trigger {
+  display: none;
+  background: var(--bg-secondary);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  align-items: center;
+  gap: 8px;
+}
+.mobile-filter-trigger .filter-summary {
+  font-size: .8rem;
+  color: var(--text-secondary);
+  flex: 1;
+}
+.mobile-filter-trigger .arrow {
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+
+/* ===== 主內容區 ===== */
+.main { padding: 16px; max-width: 1400px; margin: 0 auto; }
+
+/* ===== KPI 卡片 ===== */
+.kpi-grid {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.kpi-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.kpi-card .kpi-label {
+  font-size: .75rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.kpi-card .kpi-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+.kpi-card .kpi-sub {
+  font-size: .75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.kpi-card.accent1 .kpi-value { color: var(--accent); }
+.kpi-card.accent2 .kpi-value { color: var(--accent2); }
+.kpi-card.accent3 .kpi-value { color: var(--accent3); }
+.kpi-card.accent4 .kpi-value { color: var(--accent4); }
+
+/* ===== 圖表卡片 ===== */
+.chart-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+.chart-card h3 {
+  font-size: .9rem;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+.chart-container { width: 100%; height: 300px; }
+.chart-container.tall { height: 400px; }
+
+/* ===== 表格 ===== */
+.table-wrap { overflow-x: auto; }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+}
+.data-table th, .data-table td {
+  padding: 8px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+.data-table th {
+  color: var(--text-secondary);
+  font-weight: 500;
+  position: sticky; top: 0;
+  background: var(--bg-card);
+}
+.data-table td:first-child, .data-table th:first-child { text-align: left; }
+.data-table tr:hover td { background: rgba(79,195,247,.05); }
+
+/* ===== 桌機佈局 ===== */
+.desktop-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+/* ===== 響應式 ===== */
+@media (min-width: 768px) {
+  .filter-bar { display: flex; }
+  .mobile-filter-trigger { display: none !important; }
+  .bottom-sheet, .bottom-sheet-overlay { display: none !important; }
+  .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+  .desktop-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-container { height: 350px; }
+  .mobile-only { display: none !important; }
+}
+@media (max-width: 767px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .mobile-filter-trigger { display: flex; }
+  .desktop-only { display: none !important; }
+  .desktop-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- 標題列 -->
+<div class="header">
+  <h1>北3區 Dashboard</h1>
+  <span class="updated" id="updatedAt"></span>
+</div>
+
+<!-- 桌機篩選列 -->
+<div class="filter-bar" id="filterBar">
+  <label>期間</label>
+  <div class="quick-btns" id="quickBtns">
+    <button data-range="1m">1M</button>
+    <button data-range="3m">3M</button>
+    <button data-range="6m" class="active">6M</button>
+    <button data-range="ytd">YTD</button>
+  </div>
+  <input type="date" id="dateStart">
+  <span style="color:var(--text-secondary)">~</span>
+  <input type="date" id="dateEnd">
+  <label>客戶</label>
+  <div class="chip-group" id="clientChips"></div>
+  <label>產品</label>
+  <div class="chip-group" id="productChips"></div>
+</div>
+
+<!-- 手機篩選觸發 -->
+<div class="mobile-filter-trigger" id="mobileFilterTrigger">
+  <span class="filter-summary" id="filterSummary">近6個月 / 全部客戶 / 全部產品</span>
+  <span class="arrow">▲</span>
+</div>
+
+<!-- 手機 bottom-sheet -->
+<div class="bottom-sheet-overlay" id="sheetOverlay"></div>
+<div class="bottom-sheet" id="bottomSheet">
+  <div class="handle"></div>
+  <div class="sheet-header">
+    <h3>篩選條件</h3>
+    <button id="sheetApply">套用</button>
+  </div>
+  <div class="sheet-body">
+    <div class="filter-section">
+      <h4>期間</h4>
+      <div class="quick-btns" id="mobileQuickBtns">
+        <button data-range="1m">1M</button>
+        <button data-range="3m">3M</button>
+        <button data-range="6m" class="active">6M</button>
+        <button data-range="ytd">YTD</button>
+      </div>
+    </div>
+    <div class="filter-section">
+      <h4>客戶</h4>
+      <div class="chip-group" id="mobileClientChips"></div>
+    </div>
+    <div class="filter-section">
+      <h4>產品</h4>
+      <div class="chip-group" id="mobileProductChips"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 主內容 -->
+<div class="main">
+  <!-- KPI 卡片 -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- 圖表區 -->
+  <div class="desktop-grid">
+    <div class="chart-card">
+      <h3>週收檢趨勢</h3>
+      <div class="chart-container" id="chartWeekly"></div>
+    </div>
+    <div class="chart-card">
+      <h3>月銷量趨勢</h3>
+      <div class="chart-container" id="chartMonthly"></div>
+    </div>
+    <div class="chart-card">
+      <h3>客戶排行</h3>
+      <div class="chart-container" id="chartClientRank"></div>
+    </div>
+    <div class="chart-card">
+      <h3>規格分佈</h3>
+      <div class="chart-container" id="chartProduct"></div>
+    </div>
+    <div class="chart-card desktop-only" style="grid-column: 1 / -1;">
+      <h3>客戶業績明細</h3>
+      <div class="table-wrap" id="tableWrap"></div>
+    </div>
+    <div class="chart-card desktop-only" style="grid-column: 1 / -1;">
+      <h3>2026 Pred 業績月趨勢</h3>
+      <div class="chart-container tall" id="chartYearPred"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 常數與設定 ===== */
+const ENDPOINT = 'YOUR_APPS_SCRIPT_URL';
+const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
+const COLORS = {
+  '06瓶': '#4fc3f7',
+  '10瓶': '#81c784',
+  '20瓶': '#ffb74d',
+  'PLTgel': '#e57373'
+};
+const ACCENT_CLASSES = ['accent1', 'accent2', 'accent3', 'accent4'];
+
+/* ===== Mock Data（6個月、5個客戶、4種產品） ===== */
+function generateMockData() {
+  const clients = ['正陽骨科', '仁愛復健', '康寧骨科', '大安診所', '信義復健'];
+  const products = PRODUCTS;
+  const priceMap = {
+    '正陽骨科': { '06瓶': 1143, '10瓶': 1810, '20瓶': 3333, 'PLTgel': 762 },
+    '仁愛復健': { '06瓶': 1100, '10瓶': 1750, '20瓶': 3200, 'PLTgel': 750 },
+    '康寧骨科': { '06瓶': 1150, '10瓶': 1820, '20瓶': 3350, 'PLTgel': 770 },
+    '大安診所': { '06瓶': 1130, '10瓶': 1790, '20瓶': 3300, 'PLTgel': 755 },
+    '信義復健': { '06瓶': 1120, '10瓶': 1770, '20瓶': 3280, 'PLTgel': 745 }
+  };
+
+  const history = [];
+  const finance = [];
+
+  // 產生 2025-10 ~ 2026-03 的資料
+  for (let m = 0; m < 6; m++) {
+    const baseYear = m < 3 ? 2025 : 2026;
+    const baseMonth = m < 3 ? 10 + m : m - 2;
+    for (const client of clients) {
+      // 每月每客戶 3~6 筆收檢
+      const count = 3 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < count; i++) {
+        const day = 1 + Math.floor(Math.random() * 28);
+        const adjDay = Math.min(day + Math.floor(Math.random() * 14), 28);
+        const prod = products[Math.floor(Math.random() * products.length)];
+        const qty = 1 + Math.floor(Math.random() * 8);
+        const reportDate = `${baseYear}-${String(baseMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const adjDate = `${baseYear}-${String(baseMonth).padStart(2, '0')}-${String(adjDay).padStart(2, '0')}`;
+        history.push({ ReportDate: reportDate, AdjDate: adjDate, Client: client, Product: prod, Qty: qty });
+      }
+      // 每月每客戶一筆財務
+      const revenue = 80000 + Math.floor(Math.random() * 120000);
+      finance.push({
+        '日期': `${baseYear}-${String(baseMonth).padStart(2, '0')}-01`,
+        '客戶': client,
+        '業績': revenue
+      });
+    }
+  }
+
+  const price = clients.map(c => ({ '客戶': c, ...priceMap[c] }));
+  return {
+    history,
+    finance,
+    price,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+/* ===== Helper：月份認列（AdjDate >= 16 算下個月） ===== */
+function getAccountingMonth(adjDate) {
+  const d = new Date(adjDate);
+  const day = d.getDate();
+  if (day >= 16) {
+    d.setMonth(d.getMonth() + 1);
+  }
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/* ===== Helper：取得 ISO 週的週一日期 ===== */
+function getISOWeekMonday(dateStr) {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d);
+  monday.setDate(diff);
+  return monday.toISOString().slice(0, 10);
+}
+
+/* ===== Helper：日期格式化 ===== */
+function fmtDate(d) { return d.toISOString().slice(0, 10); }
+function fmtNum(n) { return n.toLocaleString('zh-TW'); }
+function fmtMoney(n) {
+  if (n >= 10000) return (n / 10000).toFixed(1) + '萬';
+  return fmtNum(n);
+}
+
+/* ===== 篩選資料 ===== */
+function filterData(raw, st) {
+  return raw.history.filter(r => {
+    if (st.dateRange.start && r.AdjDate < st.dateRange.start) return false;
+    if (st.dateRange.end && r.AdjDate > st.dateRange.end) return false;
+    if (st.clients.length && !st.clients.includes(r.Client)) return false;
+    if (st.products.length && !st.products.includes(r.Product)) return false;
+    return true;
+  });
+}
+
+function filterFinance(raw, st) {
+  return raw.finance.filter(r => {
+    if (st.clients.length && !st.clients.includes(r['客戶'])) return false;
+    const d = r['日期'];
+    if (st.dateRange.start && d < st.dateRange.start) return false;
+    if (st.dateRange.end && d > st.dateRange.end) return false;
+    return true;
+  });
+}
+
+/* ===== Global State ===== */
+const today = new Date();
+const sixMonthsAgo = new Date(today);
+sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+const state = {
+  dateRange: { start: fmtDate(sixMonthsAgo), end: fmtDate(today) },
+  clients: [],
+  products: []
+};
+
+let rawData = null;
+let allClients = [];
+let charts = {};
+
+/* ===== 建立價格查詢表 ===== */
+function buildPriceMap(priceArr) {
+  const m = {};
+  for (const row of priceArr) {
+    m[row['客戶']] = {};
+    for (const p of PRODUCTS) {
+      if (row[p]) m[row['客戶']][p] = row[p];
+    }
+  }
+  return m;
+}
+
+/* ===== 計算 Pred 業績 ===== */
+function calcPredRevenue(records, priceMap) {
+  let total = 0;
+  for (const r of records) {
+    const p = priceMap[r.Client];
+    if (p && p[r.Product]) {
+      total += p[r.Product] * r.Qty;
+    }
+  }
+  return total;
+}
+
+/* ===== 初始化篩選 UI ===== */
+function initFilters() {
+  allClients = [...new Set(rawData.history.map(r => r.Client))].sort();
+
+  // 桌機 chip
+  renderChips('clientChips', allClients, state.clients, 'clients');
+  renderChips('productChips', PRODUCTS, state.products, 'products');
+  // 手機 chip
+  renderChips('mobileClientChips', allClients, state.clients, 'clients');
+  renderChips('mobileProductChips', PRODUCTS, state.products, 'products');
+
+  // 日期輸入
+  document.getElementById('dateStart').value = state.dateRange.start;
+  document.getElementById('dateEnd').value = state.dateRange.end;
+  document.getElementById('dateStart').addEventListener('change', e => {
+    state.dateRange.start = e.target.value;
+    render();
+  });
+  document.getElementById('dateEnd').addEventListener('change', e => {
+    state.dateRange.end = e.target.value;
+    render();
+  });
+
+  // 快速期間按鈕
+  setupQuickBtns('quickBtns');
+  setupQuickBtns('mobileQuickBtns');
+
+  // 手機 bottom-sheet
+  const trigger = document.getElementById('mobileFilterTrigger');
+  const overlay = document.getElementById('sheetOverlay');
+  const sheet = document.getElementById('bottomSheet');
+  const apply = document.getElementById('sheetApply');
+
+  trigger.addEventListener('click', () => {
+    sheet.style.display = 'block';
+    overlay.style.display = 'block';
+    requestAnimationFrame(() => {
+      sheet.classList.add('show');
+      overlay.classList.add('show');
+    });
+  });
+  const closeSheet = () => {
+    sheet.classList.remove('show');
+    overlay.classList.remove('show');
+    setTimeout(() => { sheet.style.display = 'none'; overlay.style.display = 'none'; }, 300);
+  };
+  overlay.addEventListener('click', closeSheet);
+  apply.addEventListener('click', () => { closeSheet(); render(); });
+}
+
+function renderChips(containerId, items, selected, field) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  for (const item of items) {
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (selected.includes(item) ? ' active' : '');
+    chip.textContent = item;
+    chip.addEventListener('click', () => {
+      const idx = state[field].indexOf(item);
+      if (idx >= 0) state[field].splice(idx, 1);
+      else state[field].push(item);
+      // 同步桌機和手機 chip
+      syncChips(field);
+      if (window.innerWidth >= 768) render();
+    });
+    container.appendChild(chip);
+  }
+}
+
+function syncChips(field) {
+  const desktopId = field === 'clients' ? 'clientChips' : 'productChips';
+  const mobileId = field === 'clients' ? 'mobileClientChips' : 'mobileProductChips';
+  const items = field === 'clients' ? allClients : PRODUCTS;
+  renderChips(desktopId, items, state[field], field);
+  renderChips(mobileId, items, state[field], field);
+}
+
+function setupQuickBtns(containerId) {
+  const btns = document.querySelectorAll(`#${containerId} button`);
+  btns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const range = btn.dataset.range;
+      const now = new Date();
+      let start;
+      if (range === '1m') { start = new Date(now); start.setMonth(start.getMonth() - 1); }
+      else if (range === '3m') { start = new Date(now); start.setMonth(start.getMonth() - 3); }
+      else if (range === '6m') { start = new Date(now); start.setMonth(start.getMonth() - 6); }
+      else if (range === 'ytd') { start = new Date(now.getFullYear(), 0, 1); }
+      state.dateRange.start = fmtDate(start);
+      state.dateRange.end = fmtDate(now);
+      document.getElementById('dateStart').value = state.dateRange.start;
+      document.getElementById('dateEnd').value = state.dateRange.end;
+      if (window.innerWidth >= 768) render();
+    });
+  });
+}
+
+/* ===== 更新篩選摘要文字 ===== */
+function updateFilterSummary() {
+  const cs = state.clients.length ? state.clients.join(', ') : '全部客戶';
+  const ps = state.products.length ? state.products.join(', ') : '全部產品';
+  const txt = `${state.dateRange.start} ~ ${state.dateRange.end} / ${cs} / ${ps}`;
+  const el = document.getElementById('filterSummary');
+  if (el) el.textContent = txt;
+}
+
+/* ===== KPI 卡片 ===== */
+function renderKPI(filtered) {
+  const priceMap = buildPriceMap(rawData.price);
+  const isMobile = window.innerWidth < 768;
+  const grid = document.getElementById('kpiGrid');
+
+  // 本週
+  const thisMonday = getISOWeekMonday(fmtDate(today));
+  const thisSunday = new Date(thisMonday);
+  thisSunday.setDate(thisSunday.getDate() + 6);
+  const weekRecords = filtered.filter(r => r.AdjDate >= thisMonday && r.AdjDate <= fmtDate(thisSunday));
+  const weekQty = weekRecords.reduce((s, r) => s + r.Qty, 0);
+
+  // 本月
+  const thisMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const monthRecords = filtered.filter(r => getAccountingMonth(r.AdjDate) === thisMonthStr);
+  const monthQty = monthRecords.reduce((s, r) => s + r.Qty, 0);
+
+  // Pred 業績
+  const predRevenue = calcPredRevenue(filtered, priceMap);
+
+  // 官方業績
+  const finFiltered = filterFinance(rawData, state);
+  const officialRevenue = finFiltered.reduce((s, r) => s + r['業績'], 0);
+  const diffPct = officialRevenue ? ((predRevenue - officialRevenue) / officialRevenue * 100).toFixed(1) : 'N/A';
+
+  if (isMobile) {
+    grid.innerHTML = `
+      <div class="kpi-card accent1"><div class="kpi-label">本週收檢量</div><div class="kpi-value">${fmtNum(weekQty)}</div><div class="kpi-sub">本週 ${thisMonday}</div></div>
+      <div class="kpi-card accent2"><div class="kpi-label">本月收檢量</div><div class="kpi-value">${fmtNum(monthQty)}</div><div class="kpi-sub">${thisMonthStr}</div></div>
+      <div class="kpi-card accent3"><div class="kpi-label">本月 Pred 業績</div><div class="kpi-value">${fmtMoney(calcPredRevenue(monthRecords, priceMap))}</div></div>
+    `;
+  } else {
+    grid.innerHTML = `
+      <div class="kpi-card accent1"><div class="kpi-label">期間收檢量</div><div class="kpi-value">${fmtNum(filtered.reduce((s,r)=>s+r.Qty,0))}</div><div class="kpi-sub">${state.dateRange.start} ~ ${state.dateRange.end}</div></div>
+      <div class="kpi-card accent2"><div class="kpi-label">Pred 業績</div><div class="kpi-value">${fmtMoney(predRevenue)}</div></div>
+      <div class="kpi-card accent3"><div class="kpi-label">官方業績</div><div class="kpi-value">${fmtMoney(officialRevenue)}</div></div>
+      <div class="kpi-card accent4"><div class="kpi-label">差異</div><div class="kpi-value">${diffPct}%</div></div>
+    `;
+  }
+}
+
+/* ===== 圖表初始化 ===== */
+function initCharts() {
+  const theme = { backgroundColor: 'transparent' };
+  charts.weekly = echarts.init(document.getElementById('chartWeekly'), 'dark');
+  charts.monthly = echarts.init(document.getElementById('chartMonthly'), 'dark');
+  charts.clientRank = echarts.init(document.getElementById('chartClientRank'), 'dark');
+  charts.product = echarts.init(document.getElementById('chartProduct'), 'dark');
+  const yearPredEl = document.getElementById('chartYearPred');
+  if (yearPredEl) charts.yearPred = echarts.init(yearPredEl, 'dark');
+
+  // Resize observer
+  const ro = new ResizeObserver(() => {
+    Object.values(charts).forEach(c => c && c.resize());
+  });
+  document.querySelectorAll('.chart-container').forEach(el => ro.observe(el));
+
+  // 點擊事件
+  charts.weekly.on('click', params => {
+    if (params.name) {
+      const monday = params.name;
+      const sunday = new Date(monday);
+      sunday.setDate(sunday.getDate() + 6);
+      state.dateRange.start = monday;
+      state.dateRange.end = fmtDate(sunday);
+      render();
+    }
+  });
+
+  charts.monthly.on('click', params => {
+    if (params.name) {
+      const ym = params.name;
+      const [y, m] = ym.split('-').map(Number);
+      state.dateRange.start = `${y}-${String(m).padStart(2,'0')}-01`;
+      const last = new Date(y, m, 0);
+      state.dateRange.end = fmtDate(last);
+      render();
+    }
+  });
+
+  charts.clientRank.on('click', params => {
+    if (params.name) {
+      const client = params.name;
+      const idx = state.clients.indexOf(client);
+      if (idx >= 0) state.clients.splice(idx, 1);
+      else state.clients.push(client);
+      syncChips('clients');
+      render();
+    }
+  });
+
+  charts.product.on('click', params => {
+    if (params.name) {
+      const prod = params.name;
+      const idx = state.products.indexOf(prod);
+      if (idx >= 0) state.products.splice(idx, 1);
+      else state.products.push(prod);
+      syncChips('products');
+      render();
+    }
+  });
+}
+
+/* ===== 週收檢趨勢圖 ===== */
+function renderWeeklyChart(filtered) {
+  // 依 ISO 週分組
+  const weekMap = {};
+  for (const r of filtered) {
+    const mon = getISOWeekMonday(r.AdjDate);
+    if (!weekMap[mon]) weekMap[mon] = {};
+    if (!weekMap[mon][r.Product]) weekMap[mon][r.Product] = 0;
+    weekMap[mon][r.Product] += r.Qty;
+  }
+  const weeks = Object.keys(weekMap).sort();
+
+  const isMobile = window.innerWidth < 768;
+
+  if (isMobile) {
+    // 手機：簡單長條圖
+    const totals = weeks.map(w => Object.values(weekMap[w]).reduce((s, v) => s + v, 0));
+    charts.weekly.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 40, right: 16, top: 20, bottom: 40 },
+      xAxis: { type: 'category', data: weeks, axisLabel: { rotate: 45, fontSize: 10 } },
+      yAxis: { type: 'value' },
+      series: [{ type: 'bar', data: totals, itemStyle: { color: COLORS['06瓶'] } }],
+      tooltip: { trigger: 'axis' }
+    }, true);
+  } else {
+    // 桌機：堆疊長條 + 累積折線
+    const series = PRODUCTS.map(p => ({
+      name: p,
+      type: 'bar',
+      stack: 'total',
+      data: weeks.map(w => (weekMap[w] && weekMap[w][p]) || 0),
+      itemStyle: { color: COLORS[p] }
+    }));
+    // 累積折線
+    const cumData = [];
+    let cum = 0;
+    for (const w of weeks) {
+      cum += Object.values(weekMap[w]).reduce((s, v) => s + v, 0);
+      cumData.push(cum);
+    }
+    series.push({
+      name: '累積',
+      type: 'line',
+      yAxisIndex: 1,
+      data: cumData,
+      smooth: true,
+      lineStyle: { color: '#fff', width: 2 },
+      itemStyle: { color: '#fff' },
+      symbol: 'circle',
+      symbolSize: 4
+    });
+
+    charts.weekly.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 50, right: 60, top: 40, bottom: 40 },
+      legend: { data: [...PRODUCTS, '累積'], textStyle: { color: '#aaa', fontSize: 11 }, top: 4 },
+      xAxis: { type: 'category', data: weeks, axisLabel: { rotate: 30, fontSize: 11 } },
+      yAxis: [
+        { type: 'value', name: '數量' },
+        { type: 'value', name: '累積', position: 'right' }
+      ],
+      series,
+      tooltip: { trigger: 'axis' }
+    }, true);
+  }
+}
+
+/* ===== 月銷量趨勢圖 ===== */
+function renderMonthlyChart(filtered) {
+  // 依會計月+產品分組
+  const monthMap = {};
+  for (const r of filtered) {
+    const m = getAccountingMonth(r.AdjDate);
+    if (!monthMap[m]) monthMap[m] = {};
+    if (!monthMap[m][r.Product]) monthMap[m][r.Product] = 0;
+    monthMap[m][r.Product] += r.Qty;
+  }
+  const months = Object.keys(monthMap).sort();
+  const isMobile = window.innerWidth < 768;
+
+  if (isMobile) {
+    // 手機：堆疊長條
+    const series = PRODUCTS.map(p => ({
+      name: p,
+      type: 'bar',
+      stack: 'total',
+      data: months.map(m => (monthMap[m] && monthMap[m][p]) || 0),
+      itemStyle: { color: COLORS[p] }
+    }));
+    charts.monthly.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 40, right: 16, top: 40, bottom: 30 },
+      legend: { data: PRODUCTS, textStyle: { color: '#aaa', fontSize: 10 }, top: 4 },
+      xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11 } },
+      yAxis: { type: 'value' },
+      series,
+      tooltip: { trigger: 'axis' }
+    }, true);
+  } else {
+    // 桌機：分組長條
+    const series = PRODUCTS.map(p => ({
+      name: p,
+      type: 'bar',
+      data: months.map(m => (monthMap[m] && monthMap[m][p]) || 0),
+      itemStyle: { color: COLORS[p] }
+    }));
+    charts.monthly.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 50, right: 20, top: 40, bottom: 30 },
+      legend: { data: PRODUCTS, textStyle: { color: '#aaa', fontSize: 11 }, top: 4 },
+      xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11 } },
+      yAxis: { type: 'value', name: '數量' },
+      series,
+      tooltip: { trigger: 'axis' }
+    }, true);
+  }
+}
+
+/* ===== 客戶排行（水平長條） ===== */
+function renderClientRank(filtered) {
+  const clientMap = {};
+  for (const r of filtered) {
+    if (!clientMap[r.Client]) clientMap[r.Client] = 0;
+    clientMap[r.Client] += r.Qty;
+  }
+  const sorted = Object.entries(clientMap).sort((a, b) => a[1] - b[1]);
+  const clients = sorted.map(s => s[0]);
+  const values = sorted.map(s => s[1]);
+
+  charts.clientRank.setOption({
+    backgroundColor: 'transparent',
+    grid: { left: 90, right: 30, top: 10, bottom: 20 },
+    xAxis: { type: 'value' },
+    yAxis: { type: 'category', data: clients, axisLabel: { fontSize: 12 } },
+    series: [{
+      type: 'bar',
+      data: values,
+      itemStyle: {
+        color: params => {
+          const c = clients[params.dataIndex];
+          return state.clients.includes(c) ? COLORS['06瓶'] : '#5a6a8a';
+        }
+      },
+      label: { show: true, position: 'right', fontSize: 11, color: '#ccc' }
+    }],
+    tooltip: { trigger: 'axis' }
+  }, true);
+}
+
+/* ===== 規格甜甜圈 ===== */
+function renderProductDonut(filtered) {
+  const prodMap = {};
+  for (const r of filtered) {
+    if (!prodMap[r.Product]) prodMap[r.Product] = 0;
+    prodMap[r.Product] += r.Qty;
+  }
+  const data = PRODUCTS.filter(p => prodMap[p]).map(p => ({
+    name: p,
+    value: prodMap[p],
+    itemStyle: { color: COLORS[p] }
+  }));
+
+  charts.product.setOption({
+    backgroundColor: 'transparent',
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['50%', '50%'],
+      data,
+      label: { color: '#ccc', fontSize: 12, formatter: '{b}\n{d}%' },
+      emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,.5)' } }
+    }],
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' }
+  }, true);
+}
+
+/* ===== 客戶業績明細表 ===== */
+function renderTable(filtered) {
+  const wrap = document.getElementById('tableWrap');
+  if (!wrap) return;
+  const priceMap = buildPriceMap(rawData.price);
+  const clientData = {};
+  for (const r of filtered) {
+    if (!clientData[r.Client]) clientData[r.Client] = { qty: 0, pred: 0, products: {} };
+    clientData[r.Client].qty += r.Qty;
+    if (!clientData[r.Client].products[r.Product]) clientData[r.Client].products[r.Product] = 0;
+    clientData[r.Client].products[r.Product] += r.Qty;
+    const p = priceMap[r.Client];
+    if (p && p[r.Product]) clientData[r.Client].pred += p[r.Product] * r.Qty;
+  }
+
+  // 官方業績 by 客戶
+  const finFiltered = filterFinance(rawData, state);
+  const officialByClient = {};
+  for (const f of finFiltered) {
+    if (!officialByClient[f['客戶']]) officialByClient[f['客戶']] = 0;
+    officialByClient[f['客戶']] += f['業績'];
+  }
+
+  let html = '<table class="data-table"><thead><tr><th>客戶</th>';
+  for (const p of PRODUCTS) html += `<th>${p}</th>`;
+  html += '<th>總量</th><th>Pred業績</th><th>官方業績</th><th>差異%</th></tr></thead><tbody>';
+
+  const sortedClients = Object.entries(clientData).sort((a, b) => b[1].pred - a[1].pred);
+  for (const [client, data] of sortedClients) {
+    html += `<tr><td>${client}</td>`;
+    for (const p of PRODUCTS) html += `<td>${fmtNum(data.products[p] || 0)}</td>`;
+    const off = officialByClient[client] || 0;
+    const diff = off ? ((data.pred - off) / off * 100).toFixed(1) : 'N/A';
+    html += `<td>${fmtNum(data.qty)}</td><td>${fmtMoney(data.pred)}</td><td>${fmtMoney(off)}</td><td>${diff}%</td></tr>`;
+  }
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+/* ===== 2026 Pred 業績月趨勢 ===== */
+function renderYearPred() {
+  if (!charts.yearPred) return;
+  const priceMap = buildPriceMap(rawData.price);
+  // 只取 2026 年資料
+  const records2026 = rawData.history.filter(r => r.AdjDate.startsWith('2026'));
+  const monthMap = {};
+  for (const r of records2026) {
+    const m = getAccountingMonth(r.AdjDate);
+    if (!m.startsWith('2026')) continue;
+    if (!monthMap[m]) monthMap[m] = 0;
+    const p = priceMap[r.Client];
+    if (p && p[r.Product]) monthMap[m] += p[r.Product] * r.Qty;
+  }
+
+  const months = [];
+  for (let i = 1; i <= 12; i++) months.push(`2026-${String(i).padStart(2, '0')}`);
+  const values = months.map(m => monthMap[m] || 0);
+
+  // 累積
+  const cumValues = [];
+  let cum = 0;
+  for (const v of values) { cum += v; cumValues.push(cum); }
+
+  charts.yearPred.setOption({
+    backgroundColor: 'transparent',
+    grid: { left: 70, right: 70, top: 40, bottom: 30 },
+    legend: { data: ['月 Pred', '累積'], textStyle: { color: '#aaa' }, top: 4 },
+    xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11 } },
+    yAxis: [
+      { type: 'value', name: 'Pred業績', axisLabel: { formatter: v => fmtMoney(v) } },
+      { type: 'value', name: '累積', position: 'right', axisLabel: { formatter: v => fmtMoney(v) } }
+    ],
+    series: [
+      { name: '月 Pred', type: 'bar', data: values, itemStyle: { color: COLORS['06瓶'] } },
+      { name: '累積', type: 'line', yAxisIndex: 1, data: cumValues, smooth: true, lineStyle: { color: COLORS['PLTgel'], width: 2 }, itemStyle: { color: COLORS['PLTgel'] } }
+    ],
+    tooltip: { trigger: 'axis', formatter: params => params.map(p => `${p.seriesName}: ${fmtMoney(p.value)}`).join('<br>') }
+  }, true);
+}
+
+/* ===== 主 render ===== */
+function render() {
+  if (!rawData) return;
+  const filtered = filterData(rawData, state);
+  updateFilterSummary();
+  renderKPI(filtered);
+  renderWeeklyChart(filtered);
+  renderMonthlyChart(filtered);
+  renderClientRank(filtered);
+  renderProductDonut(filtered);
+  renderTable(filtered);
+  renderYearPred();
+}
+
+/* ===== 載入資料 ===== */
+async function loadData() {
+  try {
+    const resp = await fetch(ENDPOINT);
+    if (!resp.ok) throw new Error('fetch failed');
+    rawData = await resp.json();
+  } catch {
+    console.log('使用 mock data');
+    rawData = generateMockData();
+  }
+  document.getElementById('updatedAt').textContent = '更新: ' + new Date(rawData.updatedAt).toLocaleString('zh-TW');
+  initFilters();
+  initCharts();
+  render();
+}
+
+/* ===== 視窗 resize 重繪 ===== */
+window.addEventListener('resize', () => {
+  Object.values(charts).forEach(c => c && c.resize());
+  render();
+});
+
+/* ===== Service Worker 註冊 ===== */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW 註冊失敗:', err));
+}
+
+/* ===== 啟動 ===== */
+loadData();
+</script>
+</body>
+</html>
