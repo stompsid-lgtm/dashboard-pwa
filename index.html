@@ -735,7 +735,9 @@ a { color: var(--cyan); }
 
 <script>
 /* ===== 常數 ===== */
+const VERSION = 'v2.1.0';
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSbP7zzCGChE60CQ2BQ-W-BcWGRSAFYpkonbkfFeCjTc8PA2/exec';
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 分鐘自動刷新
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
 const COLORS = { '06瓶': '#00E5FF', '10瓶': '#76FF03', '20瓶': '#FFD600', 'PLTgel': '#FF5722' };
 const MOCK_TARGET = {
@@ -1532,7 +1534,7 @@ async function loadData() {
     console.log('使用 mock data');
     rawData = generateMockData();
   }
-  document.getElementById('updatedAt').textContent = '更新: ' + new Date(rawData.updatedAt).toLocaleString('zh-TW');
+  document.getElementById('updatedAt').textContent = VERSION + ' · 更新: ' + new Date(rawData.updatedAt).toLocaleString('zh-TW');
   initFilters();
   initCharts();
   render();
@@ -1549,8 +1551,18 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW:', err));
 }
 
-/* ===== 啟動 ===== */
+/* ===== 啟動 + 自動刷新 ===== */
 loadData();
+setInterval(async () => {
+  try {
+    const resp = await fetch(ENDPOINT);
+    if (!resp.ok) return;
+    rawData = await resp.json();
+    normalizeRawData(rawData);
+    document.getElementById('updatedAt').textContent = VERSION + ' · 更新: ' + new Date(rawData.updatedAt).toLocaleString('zh-TW');
+    render();
+  } catch { /* 靜默失敗，等下次刷新 */ }
+}, REFRESH_INTERVAL);
 </script>
 </body>
 </html>
