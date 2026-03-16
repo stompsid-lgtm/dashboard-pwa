@@ -58,10 +58,10 @@ GLOBAL-STATE:
 </conn>
 
 <debt>
-endpoint: ENDPOINT = 'YOUR_APPS_SCRIPT_URL'（需建立 Apps Script Web App 並填入）
 echarts-cdn: 離線時圖表無法渲染
-sw-version: cache 版本 dashboard-pwa-v1，更新需 bump
-target-source: 目標值目前為 mock 常數，待接 data source
+sw-version: cache 版本 dashboard-pwa-v2，更新需 bump
+cf-access: CF Access 認證尚未設定（需 Zero Trust dashboard）
+finance-feb2026: 財務實際業績 2026/2 月資料待補
 </debt>
 
 <ref label="on-demand | Read when needed">
@@ -69,14 +69,18 @@ target-source: 目標值目前為 mock 常數，待接 data source
 Spec.md → 規格文件 v2（Brutalist Signal 設計語言 + 完整佈局定義）
 Log.md → 開發日誌
 
+DEPLOY:
+  url: https://dashboard-pwa.stompsid.workers.dev/
+  platform: CF Workers（GitHub 整合，push main 自動部署）
+  gas: DashboardAPI.gs（bound to 🚛每週銷存表, Web App deployed）
+
 COMMANDS:
   open index.html
-  python3 -m http.server 8000  # 推薦，避免 SW 路徑問題
+  python3 -m http.server 8000  # 本地測試
 
 NEXT-STEPS:
-  1. 依 Spec v2 全面重做 index.html（Brutalist Signal）
-  2. 建立 Google Sheets + Apps Script Web App，輸出 JSON
-  3. index.html 中 ENDPOINT 改為真實 URL
-  4. 決定部署方式（GitHub Pages 或其他）
+  1. CF Access 認證設定（Zero Trust → Add Application → Self-hosted → Google IdP）
+  2. 補 2026/2 月財務實際業績資料
+  3. 視需要新增功能
 
 </ref>

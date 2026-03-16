@@ -46,3 +46,16 @@
   - 入場動畫 fadeUp staggered + prefers-reduced-motion
   - SW cache bump v2 + manifest theme color 更新
   - .gitignore 加入 .claude-design/
+- **GAS Web App 部署**：
+  - DashboardAPI.gs 新增至 🚛每週銷存表 Apps Script
+  - 讀取歷史資料庫（295筆）、單價（29客戶）、財務實際業績（376筆）、骨復北3區目標
+  - 部署為 Web App（Execute as: Me, Access: Anyone）
+  - CacheService 5 分鐘快取
+- **前端資料處理強化**：
+  - normalizeDate/normalizeRawData 防禦性處理
+  - target 改 per-month 陣列（1-10月 56萬、11-12月 70萬、年 700萬）
+  - 達成率依篩選期間動態計算
+  - 年度趨勢新增月目標 dotted line + 累積目標線
+- **CF Pages 部署**：dashboard-pwa.stompsid.workers.dev
+  - GitHub 整合（stompsid-lgtm/dashboard-pwa → main branch auto-deploy）
+- **待完成**：CF Access 認證（需 Zero Trust dashboard 手動設定）
