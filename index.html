@@ -132,7 +132,7 @@ a { color: var(--cyan); }
   font-weight: 700;
 }
 .date-range { display: flex; align-items: center; gap: 6px; }
-.date-range input[type="date"] {
+.date-range input[type="month"] {
   background: var(--bg-input);
   color: var(--text);
   border: 1px solid var(--border);
@@ -141,7 +141,7 @@ a { color: var(--cyan); }
   font-size: var(--caption);
   font-family: 'Noto Sans TC', sans-serif;
 }
-.date-range input[type="date"]::-webkit-calendar-picker-indicator {
+.date-range input[type="month"]::-webkit-calendar-picker-indicator {
   filter: invert(0.7);
 }
 .date-range-sep { color: var(--text-muted); font-size: var(--caption); }
@@ -392,7 +392,7 @@ a { color: var(--cyan); }
 }
 
 /* ===== 客戶排行（卡片列表） ===== */
-.rank-list { list-style: none; display: flex; flex-direction: column; gap: clamp(6px, 1vw, 12px); }
+.rank-list { list-style: none; display: flex; flex-direction: column; gap: clamp(6px, 1vw, 12px); max-height: clamp(300px, 38vw, 500px); overflow-y: auto; }
 .rank-item {
   display: flex;
   align-items: center;
@@ -440,7 +440,7 @@ a { color: var(--cyan); }
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--caption);
+  font-size: clamp(0.85rem, 1.2vw, 1.05rem); /* +20% from caption */
 }
 .data-table th, .data-table td {
   padding: clamp(6px, 1vw, 10px) clamp(8px, 1.2vw, 14px);
@@ -547,7 +547,7 @@ a { color: var(--cyan); }
   gap: 6px;
   margin-top: 8px;
 }
-.bottom-sheet .date-range input[type="date"] {
+.bottom-sheet .date-range input[type="month"] {
   flex: 1;
   background: var(--bg-input);
   color: var(--text);
@@ -593,9 +593,9 @@ a { color: var(--cyan); }
       <button class="pill" data-range="ytd">YTD</button>
     </div>
     <div class="date-range">
-      <input type="date" id="dateStart">
+      <input type="month" id="dateStart">
       <span class="date-range-sep">~</span>
-      <input type="date" id="dateEnd">
+      <input type="month" id="dateEnd">
     </div>
   </div>
 </nav>
@@ -632,9 +632,9 @@ a { color: var(--cyan); }
         <button class="pill" data-range="ytd">YTD</button>
       </div>
       <div class="date-range">
-        <input type="date" id="mobileDateStart">
+        <input type="month" id="mobileDateStart">
         <span class="date-range-sep">~</span>
-        <input type="date" id="mobileDateEnd">
+        <input type="month" id="mobileDateEnd">
       </div>
     </div>
     <div class="filter-section">
@@ -790,10 +790,21 @@ function getISOWeekMonday(dateStr) {
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(d);
   monday.setDate(diff);
-  return monday.toISOString().slice(0, 10);
+  return fmtDate(monday);
 }
 
-function fmtDate(d) { return d.toISOString().slice(0, 10); }
+/* 台北標準時間格式化 YYYY-MM-DD（避免 UTC 偏移問題） */
+function fmtDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/* 格式化月份 YYYY-MM */
+function fmtMonth(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 function fmtNum(n) { return n.toLocaleString('zh-TW'); }
 function fmtMoney(n) {
   if (n >= 10000) return (n / 10000).toFixed(1) + '萬';
@@ -860,30 +871,27 @@ function getTargetForMonths(target, startMonth, endMonth) {
   return sum;
 }
 
-/* 根據篩選的日期範圍，算出對應的目標合計（只看 2026 年月份）*/
-function getTargetForRange(target, dateStart, dateEnd) {
+/* 根據篩選月份範圍（YYYY-MM），算出對應的目標合計（只看 2026 年月份）*/
+function getTargetForRange(target, monthStart, monthEnd) {
   if (!target || !Array.isArray(target.monthly)) return target ? target.yearly : 0;
-  // 取得範圍內涵蓋的 2026 年月份
-  const start = dateStart || '2026-01-01';
-  const end = dateEnd || '2026-12-31';
+  const start = monthStart || '2026-01';
+  const end = monthEnd || '2026-12';
   let sum = 0;
   for (let m = 1; m <= 12; m++) {
     const monthStr = `2026-${String(m).padStart(2,'0')}`;
-    // 月份的起始日（用 01）和結束日
-    const mStart = `${monthStr}-01`;
-    const mEnd = `${monthStr}-31`;
-    // 如果該月與篩選範圍有交集，就計入
-    if (mStart <= end && mEnd >= start) {
+    if (monthStr >= start && monthStr <= end) {
       sum += target.monthly[m - 1];
     }
   }
   return sum || target.yearly;
 }
 
+/* 篩選以月份為單位：state.dateRange 存 YYYY-MM */
 function filterData(raw, st) {
   return raw.history.filter(r => {
-    if (st.dateRange.start && r.AdjDate < st.dateRange.start) return false;
-    if (st.dateRange.end && r.AdjDate > st.dateRange.end) return false;
+    const adjMonth = r.AdjDate ? r.AdjDate.slice(0, 7) : '';
+    if (st.dateRange.start && adjMonth < st.dateRange.start) return false;
+    if (st.dateRange.end && adjMonth > st.dateRange.end) return false;
     if (st.clients.length && !st.clients.includes(r.Client)) return false;
     if (st.products.length && !st.products.includes(r.Product)) return false;
     return true;
@@ -893,9 +901,9 @@ function filterData(raw, st) {
 function filterFinance(raw, st) {
   return raw.finance.filter(r => {
     if (st.clients.length && !st.clients.includes(r['客戶'])) return false;
-    const d = r['日期'];
-    if (st.dateRange.start && d < st.dateRange.start) return false;
-    if (st.dateRange.end && d > st.dateRange.end) return false;
+    const dMonth = r['日期'] ? r['日期'].slice(0, 7) : '';
+    if (st.dateRange.start && dMonth < st.dateRange.start) return false;
+    if (st.dateRange.end && dMonth > st.dateRange.end) return false;
     return true;
   });
 }
@@ -918,13 +926,13 @@ function calcPredRevenue(records, priceMap) {
   return total;
 }
 
-/* ===== Global State ===== */
+/* ===== Global State（月份制篩選：YYYY-MM） ===== */
 const today = new Date();
 const sixMonthsAgo = new Date(today);
 sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
 const state = {
-  dateRange: { start: fmtDate(sixMonthsAgo), end: fmtDate(today) },
+  dateRange: { start: fmtMonth(sixMonthsAgo), end: fmtMonth(today) },
   clients: [],
   products: []
 };
@@ -934,8 +942,8 @@ let allClients = [];
 let charts = {};
 
 const defaultDateRange = {
-  start: fmtDate(sixMonthsAgo),
-  end: fmtDate(today)
+  start: fmtMonth(sixMonthsAgo),
+  end: fmtMonth(today)
 };
 
 /* ===== 篩選器邏輯 ===== */
@@ -947,11 +955,11 @@ function initFilters() {
   renderChips('mobileClientChips', allClients, state.clients, 'clients');
   renderChips('mobileProductChips', PRODUCTS, state.products, 'products');
 
-  // 桌機日期
+  // 桌機月份選擇器
   document.getElementById('dateStart').value = state.dateRange.start;
   document.getElementById('dateEnd').value = state.dateRange.end;
   document.getElementById('dateStart').addEventListener('change', e => {
-    state.dateRange.start = e.target.value;
+    state.dateRange.start = e.target.value; // YYYY-MM
     clearActivePills();
     render();
   });
@@ -961,7 +969,7 @@ function initFilters() {
     render();
   });
 
-  // 手機日期
+  // 手機月份選擇器
   document.getElementById('mobileDateStart').value = state.dateRange.start;
   document.getElementById('mobileDateEnd').value = state.dateRange.end;
   document.getElementById('mobileDateStart').addEventListener('change', e => {
@@ -1032,7 +1040,6 @@ function setupQuickBtns(containerId) {
   const btns = document.querySelectorAll(`#${containerId} .pill`);
   btns.forEach(btn => {
     btn.addEventListener('click', () => {
-      // 清除所有 pill active 然後設定當前
       document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
       document.querySelectorAll(`.pill[data-range="${btn.dataset.range}"]`).forEach(b => b.classList.add('active'));
 
@@ -1043,15 +1050,11 @@ function setupQuickBtns(containerId) {
       else if (range === '3m') { start = new Date(now); start.setMonth(start.getMonth() - 3); }
       else if (range === '6m') { start = new Date(now); start.setMonth(start.getMonth() - 6); }
       else if (range === 'ytd') { start = new Date(now.getFullYear(), 0, 1); }
-      state.dateRange.start = fmtDate(start);
-      state.dateRange.end = fmtDate(now);
+      /* 月份制：snap 到 YYYY-MM */
+      state.dateRange.start = fmtMonth(start);
+      state.dateRange.end = fmtMonth(now);
 
-      // 同步所有 date input
-      document.getElementById('dateStart').value = state.dateRange.start;
-      document.getElementById('dateEnd').value = state.dateRange.end;
-      document.getElementById('mobileDateStart').value = state.dateRange.start;
-      document.getElementById('mobileDateEnd').value = state.dateRange.end;
-
+      syncDateInputs();
       if (window.innerWidth >= 768) render();
     });
   });
@@ -1149,9 +1152,9 @@ function renderKPI(filtered) {
   const weekRecords = filtered.filter(r => r.AdjDate >= thisMonday && r.AdjDate <= fmtDate(thisSunday));
   const weekQty = weekRecords.reduce((s, r) => s + r.Qty, 0);
 
-  // 本月
-  const thisMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  const monthRecords = filtered.filter(r => getAccountingMonth(r.AdjDate) === thisMonthStr);
+  // 本月（AdjDate 已是調整後日期，直接取月份）
+  const thisMonthStr = fmtMonth(today);
+  const monthRecords = filtered.filter(r => r.AdjDate && r.AdjDate.slice(0, 7) === thisMonthStr);
   const monthQty = monthRecords.reduce((s, r) => s + r.Qty, 0);
 
   if (isMobile) {
@@ -1184,14 +1187,13 @@ function initCharts() {
   });
   document.querySelectorAll('.chart-area, .chart-area-tall').forEach(el => ro.observe(el));
 
-  // Click handlers
+  // Click handlers（月份制：設定 YYYY-MM）
   charts.weekly.on('click', params => {
     if (params.name) {
-      const monday = params.name;
-      const sun = new Date(monday);
-      sun.setDate(sun.getDate() + 6);
-      state.dateRange.start = monday;
-      state.dateRange.end = fmtDate(sun);
+      // 從 ReportDate 取月份
+      const clickMonth = params.name.slice(0, 7);
+      state.dateRange.start = clickMonth;
+      state.dateRange.end = clickMonth;
       clearActivePills();
       syncDateInputs();
       render();
@@ -1199,9 +1201,8 @@ function initCharts() {
   });
   charts.monthly.on('click', params => {
     if (params.name) {
-      const [y, m] = params.name.split('-').map(Number);
-      state.dateRange.start = `${y}-${String(m).padStart(2,'0')}-01`;
-      state.dateRange.end = fmtDate(new Date(y, m, 0));
+      state.dateRange.start = params.name;
+      state.dateRange.end = params.name;
       clearActivePills();
       syncDateInputs();
       render();
@@ -1225,63 +1226,73 @@ function syncDateInputs() {
   document.getElementById('mobileDateEnd').value = state.dateRange.end;
 }
 
-/* ===== 週收檢趨勢 ===== */
+/* ===== 週收檢趨勢（X 軸 = ReportDate，dataZoom 預設 6 週） ===== */
 function renderWeeklyChart(filtered) {
-  const weekMap = {};
+  /* 以 ReportDate 分組（不算 Monday） */
+  const dateMap = {};
   for (const r of filtered) {
-    const mon = getISOWeekMonday(r.AdjDate);
-    if (!weekMap[mon]) weekMap[mon] = {};
-    if (!weekMap[mon][r.Product]) weekMap[mon][r.Product] = 0;
-    weekMap[mon][r.Product] += r.Qty;
+    const d = r.ReportDate || r.AdjDate;
+    if (!dateMap[d]) dateMap[d] = {};
+    if (!dateMap[d][r.Product]) dateMap[d][r.Product] = 0;
+    dateMap[d][r.Product] += r.Qty;
   }
-  const weeks = Object.keys(weekMap).sort();
+  const dates = Object.keys(dateMap).sort();
   const isMobile = window.innerWidth < 768;
   const tooltipStyle = { backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' } };
   const axLine = { lineStyle: { color: '#222' } };
   const axLabel = { color: '#666' };
   const splitStyle = { lineStyle: { color: '#1a1a1a' } };
+  const defaultVisible = 6;
+  const zoomStart = dates.length > defaultVisible ? ((dates.length - defaultVisible) / dates.length) * 100 : 0;
 
   if (isMobile) {
-    const totals = weeks.map(w => Object.values(weekMap[w]).reduce((s, v) => s + v, 0));
+    const totals = dates.map(d => Object.values(dateMap[d]).reduce((s, v) => s + v, 0));
     charts.weekly.setOption({
       backgroundColor: 'transparent',
-      grid: { left: 40, right: 16, top: 20, bottom: 40 },
-      xAxis: { type: 'category', data: weeks, axisLabel: { rotate: 45, fontSize: 10, color: '#666' }, axisLine: axLine },
+      grid: { left: 40, right: 16, top: 20, bottom: 50 },
+      xAxis: { type: 'category', data: dates, axisLabel: { rotate: 45, fontSize: 10, color: '#666' }, axisLine: axLine },
       yAxis: { type: 'value', splitLine: splitStyle, axisLabel: axLabel },
-      series: [{ type: 'bar', data: totals, itemStyle: { color: COLORS['06瓶'] } }],
+      dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }, { type: 'slider', start: zoomStart, end: 100, height: 16, bottom: 4 }],
+      series: [{ type: 'bar', data: totals, itemStyle: { color: COLORS['06瓶'] }, label: { show: true, position: 'top', color: '#999', fontSize: 9 } }],
       tooltip: { trigger: 'axis', ...tooltipStyle }
     }, true);
   } else {
-    const series = PRODUCTS.map(p => ({
+    const series = PRODUCTS.map((p, idx) => ({
       name: p, type: 'bar', stack: 'total',
-      data: weeks.map(w => (weekMap[w] && weekMap[w][p]) || 0),
-      itemStyle: { color: COLORS[p] }
+      data: dates.map(d => (dateMap[d] && dateMap[d][p]) || 0),
+      itemStyle: { color: COLORS[p] },
+      label: idx === PRODUCTS.length - 1 ? { show: true, position: 'top', color: '#999', fontSize: 10,
+        formatter: params => { const total = dates[params.dataIndex] ? Object.values(dateMap[dates[params.dataIndex]]).reduce((s,v)=>s+v,0) : 0; return total > 0 ? total : ''; }
+      } : { show: false }
     }));
     const cumData = []; let cum = 0;
-    for (const w of weeks) { cum += Object.values(weekMap[w]).reduce((s, v) => s + v, 0); cumData.push(cum); }
+    for (const d of dates) { cum += Object.values(dateMap[d]).reduce((s, v) => s + v, 0); cumData.push(cum); }
     series.push({
       name: '累積', type: 'line', yAxisIndex: 1, data: cumData, smooth: true,
       lineStyle: { color: '#fff', width: 2 }, itemStyle: { color: '#fff' }, symbol: 'circle', symbolSize: 4
     });
     charts.weekly.setOption({
       backgroundColor: 'transparent',
-      grid: { left: 50, right: 60, top: 40, bottom: 40 },
+      grid: { left: 50, right: 60, top: 40, bottom: 50 },
       legend: { data: [...PRODUCTS, '累積'], textStyle: { color: '#666', fontSize: 11 }, top: 0 },
-      xAxis: { type: 'category', data: weeks, axisLabel: { rotate: 30, fontSize: 11, color: '#666' }, axisLine: axLine },
+      xAxis: { type: 'category', data: dates, axisLabel: { rotate: 30, fontSize: 11, color: '#666' }, axisLine: axLine },
       yAxis: [
         { type: 'value', name: '數量', splitLine: splitStyle, axisLabel: axLabel },
         { type: 'value', name: '累積', position: 'right', splitLine: { show: false }, axisLabel: axLabel }
       ],
+      dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }, { type: 'slider', start: zoomStart, end: 100, height: 18, bottom: 4 }],
       series, tooltip: { trigger: 'axis', ...tooltipStyle }
     }, true);
   }
 }
 
-/* ===== 月銷量趨勢 ===== */
+/* ===== 月銷量趨勢（AdjDate 已調整，直接取月份，dataZoom 預設 3 月） ===== */
 function renderMonthlyChart(filtered) {
   const monthMap = {};
   for (const r of filtered) {
-    const m = getAccountingMonth(r.AdjDate);
+    /* AdjDate 已含 16 日調整，直接取 YYYY-MM */
+    const m = r.AdjDate ? r.AdjDate.slice(0, 7) : '';
+    if (!m) continue;
     if (!monthMap[m]) monthMap[m] = {};
     if (!monthMap[m][r.Product]) monthMap[m][r.Product] = 0;
     monthMap[m][r.Product] += r.Qty;
@@ -1289,39 +1300,47 @@ function renderMonthlyChart(filtered) {
   const months = Object.keys(monthMap).sort();
   const isMobile = window.innerWidth < 768;
   const tooltipStyle = { backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' } };
+  const defaultVisible = 3;
+  const zoomStart = months.length > defaultVisible ? ((months.length - defaultVisible) / months.length) * 100 : 0;
 
   if (isMobile) {
-    const series = PRODUCTS.map(p => ({
+    const series = PRODUCTS.map((p, idx) => ({
       name: p, type: 'bar', stack: 'total',
       data: months.map(m => (monthMap[m] && monthMap[m][p]) || 0),
-      itemStyle: { color: COLORS[p] }
+      itemStyle: { color: COLORS[p] },
+      label: idx === PRODUCTS.length - 1 ? { show: true, position: 'top', color: '#999', fontSize: 9,
+        formatter: params => { const total = months[params.dataIndex] ? Object.values(monthMap[months[params.dataIndex]]).reduce((s,v)=>s+v,0) : 0; return total > 0 ? total : ''; }
+      } : { show: false }
     }));
     charts.monthly.setOption({
       backgroundColor: 'transparent',
-      grid: { left: 40, right: 16, top: 40, bottom: 30 },
+      grid: { left: 40, right: 16, top: 40, bottom: 40 },
       legend: { data: PRODUCTS, textStyle: { color: '#666', fontSize: 10 }, top: 0 },
       xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11, color: '#666' }, axisLine: { lineStyle: { color: '#222' } } },
       yAxis: { type: 'value', splitLine: { lineStyle: { color: '#1a1a1a' } }, axisLabel: { color: '#666' } },
+      dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }, { type: 'slider', start: zoomStart, end: 100, height: 14, bottom: 2 }],
       series, tooltip: { trigger: 'axis', ...tooltipStyle }
     }, true);
   } else {
-    const series = PRODUCTS.map(p => ({
+    const series = PRODUCTS.map((p, idx) => ({
       name: p, type: 'bar',
       data: months.map(m => (monthMap[m] && monthMap[m][p]) || 0),
-      itemStyle: { color: COLORS[p] }
+      itemStyle: { color: COLORS[p] },
+      label: { show: true, position: 'top', color: '#999', fontSize: 10 }
     }));
     charts.monthly.setOption({
       backgroundColor: 'transparent',
-      grid: { left: 50, right: 20, top: 40, bottom: 30 },
+      grid: { left: 50, right: 20, top: 40, bottom: 40 },
       legend: { data: PRODUCTS, textStyle: { color: '#666', fontSize: 11 }, top: 0 },
       xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11, color: '#666' }, axisLine: { lineStyle: { color: '#222' } } },
       yAxis: { type: 'value', name: '數量', splitLine: { lineStyle: { color: '#1a1a1a' } }, axisLabel: { color: '#666' } },
+      dataZoom: [{ type: 'inside', start: zoomStart, end: 100 }, { type: 'slider', start: zoomStart, end: 100, height: 18, bottom: 4 }],
       series, tooltip: { trigger: 'axis', ...tooltipStyle }
     }, true);
   }
 }
 
-/* ===== 規格甜甜圈 ===== */
+/* ===== 規格甜甜圈（右上角圖例顯示各產品數量合計） ===== */
 function renderProductDonut(filtered) {
   const prodMap = {};
   for (const r of filtered) {
@@ -1331,10 +1350,19 @@ function renderProductDonut(filtered) {
   const data = PRODUCTS.filter(p => prodMap[p]).map(p => ({
     name: p, value: prodMap[p], itemStyle: { color: COLORS[p] }
   }));
+  /* 自訂 legend formatter 顯示數量 */
+  const legendData = PRODUCTS.filter(p => prodMap[p]);
   charts.product.setOption({
     backgroundColor: 'transparent',
+    legend: {
+      data: legendData,
+      right: 10, top: 10,
+      orient: 'vertical',
+      textStyle: { color: '#999', fontSize: 11 },
+      formatter: name => `${name}  ${fmtNum(prodMap[name] || 0)}`
+    },
     series: [{
-      type: 'pie', radius: ['40%', '72%'], center: ['50%', '50%'], data,
+      type: 'pie', radius: ['40%', '72%'], center: ['45%', '55%'], data,
       label: { color: '#999', fontSize: 12, formatter: '{b}\n{d}%' },
       emphasis: { scaleSize: 6 }
     }],
@@ -1342,23 +1370,32 @@ function renderProductDonut(filtered) {
   }, true);
 }
 
-/* ===== 客戶排行（卡片列表） ===== */
+/* ===== 客戶排行（卡片列表）— 金額 = 財務實際業績 ===== */
 function renderClientRank(filtered) {
-  const priceMap = buildPriceMap(rawData.price);
-  const clientMap = {};
+  /* 瓶數來自歷史資料庫 */
+  const clientQty = {};
   for (const r of filtered) {
-    if (!clientMap[r.Client]) clientMap[r.Client] = { qty: 0, pred: 0 };
-    clientMap[r.Client].qty += r.Qty;
-    const p = priceMap[r.Client];
-    if (p && p[r.Product]) clientMap[r.Client].pred += p[r.Product] * r.Qty;
+    if (!clientQty[r.Client]) clientQty[r.Client] = 0;
+    clientQty[r.Client] += r.Qty;
   }
-  const sorted = Object.entries(clientMap).sort((a, b) => b[1].qty - a[1].qty);
+  /* 金額來自財務實際業績 */
+  const finFiltered = filterFinance(rawData, state);
+  const clientRevenue = {};
+  for (const f of finFiltered) {
+    if (!clientRevenue[f['客戶']]) clientRevenue[f['客戶']] = 0;
+    clientRevenue[f['客戶']] += f['業績'];
+  }
+  /* 合併，以 qty desc 排序 */
+  const allClientsInData = [...new Set([...Object.keys(clientQty), ...Object.keys(clientRevenue)])];
+  const merged = allClientsInData.map(name => ({ name, qty: clientQty[name] || 0, revenue: clientRevenue[name] || 0 }));
+  merged.sort((a, b) => b.qty - a.qty);
+
   const list = document.getElementById('clientRankList');
-  list.innerHTML = sorted.map(([name, data], i) => `
-    <li class="rank-item${state.clients.includes(name) ? ' selected' : ''}" data-client="${name}">
+  list.innerHTML = merged.map((d, i) => `
+    <li class="rank-item${state.clients.includes(d.name) ? ' selected' : ''}" data-client="${d.name}">
       <span class="rank-pos">${String(i + 1).padStart(2, '0')}</span>
-      <div class="rank-info"><div class="rank-name">${name}</div><div class="rank-sub">${fmtNum(data.qty)} 瓶</div></div>
-      <span class="rank-value">${fmtMoney(data.pred)}</span>
+      <div class="rank-info"><div class="rank-name">${d.name}</div><div class="rank-sub">${fmtNum(d.qty)} 瓶</div></div>
+      <span class="rank-value">${fmtMoney(d.revenue)}</span>
     </li>
   `).join('');
 
@@ -1396,17 +1433,20 @@ function renderTable(filtered) {
     officialByClient[f['客戶']] += f['業績'];
   }
 
+  /* 計算全部客戶 Pred 合計（用於佔比） */
+  const totalPred = Object.values(clientData).reduce((s, d) => s + d.pred, 0);
+
   let html = '<table class="data-table"><thead><tr><th>客戶</th>';
   for (const p of PRODUCTS) html += `<th>${p}</th>`;
-  html += '<th>總量</th><th>Pred</th><th>官方</th><th>差異%</th></tr></thead><tbody>';
+  html += '<th>總量</th><th>Pred</th><th>官方</th><th>佔比%</th></tr></thead><tbody>';
 
   const sortedClients = Object.entries(clientData).sort((a, b) => b[1].pred - a[1].pred);
   for (const [client, data] of sortedClients) {
     html += `<tr><td>${client}</td>`;
     for (const p of PRODUCTS) html += `<td>${fmtNum(data.products[p] || 0)}</td>`;
     const off = officialByClient[client] || 0;
-    const diff = off ? ((data.pred - off) / off * 100).toFixed(1) : 'N/A';
-    html += `<td>${fmtNum(data.qty)}</td><td>${fmtMoney(data.pred)}</td><td>${fmtMoney(off)}</td><td>${diff}%</td></tr>`;
+    const share = totalPred > 0 ? (data.pred / totalPred * 100).toFixed(1) : '0';
+    html += `<td>${fmtNum(data.qty)}</td><td>${fmtMoney(data.pred)}</td><td>${fmtMoney(off)}</td><td>${share}%</td></tr>`;
   }
   html += '</tbody></table>';
   wrap.innerHTML = html;
@@ -1416,10 +1456,10 @@ function renderTable(filtered) {
 function renderYearPred() {
   if (!charts.yearPred) return;
   const priceMap = buildPriceMap(rawData.price);
-  const records2026 = rawData.history.filter(r => r.AdjDate.startsWith('2026'));
+  const records2026 = rawData.history.filter(r => r.AdjDate && r.AdjDate.startsWith('2026'));
   const monthMap = {};
   for (const r of records2026) {
-    const m = getAccountingMonth(r.AdjDate);
+    const m = r.AdjDate.slice(0, 7); /* AdjDate 已調整，直接取月份 */
     if (!m.startsWith('2026')) continue;
     if (!monthMap[m]) monthMap[m] = 0;
     const p = priceMap[r.Client];
