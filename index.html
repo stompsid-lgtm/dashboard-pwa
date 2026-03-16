@@ -3,124 +3,467 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#16213e">
+<meta name="theme-color" content="#0a0a0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>北3區業績 Dashboard</title>
 <link rel="manifest" href="./manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <style>
-/* ===== CSS 變數：深色主題 ===== */
+/* ===== CSS 變數：Brutalist Signal ===== */
 :root {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-card: #1f2b45;
-  --bg-input: #253354;
-  --text-primary: #e0e0e0;
-  --text-secondary: #8892a4;
-  --text-accent: #4fc3f7;
-  --border: #2a3a5c;
-  --accent: #4fc3f7;
-  --accent2: #81c784;
-  --accent3: #ffb74d;
-  --accent4: #e57373;
-  --radius: 12px;
-  --shadow: 0 4px 12px rgba(0,0,0,.3);
+  --bg: #0a0a0a;
+  --bg-card: #141414;
+  --bg-elevated: #1a1a1a;
+  --bg-input: #1e1e1e;
+  --signal: #FF5722;
+  --signal-dim: rgba(255,87,34,0.15);
+  --cyan: #00E5FF;
+  --green: #76FF03;
+  --amber: #FFD600;
+  --text: #f0f0f0;
+  --text-dim: #666;
+  --text-muted: #444;
+  --border: #222;
+  --radius: 4px;
+  --shadow: 0 4px 12px rgba(0,0,0,.4);
+
+  /* Editorial Type Scale */
+  --hero: clamp(4rem, 10vw, 9rem);
+  --h1: clamp(2rem, 5vw, 4rem);
+  --h2: clamp(1.4rem, 3vw, 2.2rem);
+  --h3: clamp(1rem, 2vw, 1.4rem);
+  --body: clamp(0.85rem, 1.4vw, 1.1rem);
+  --caption: clamp(0.7rem, 1vw, 0.85rem);
+  --micro: clamp(0.6rem, 0.8vw, 0.75rem);
 }
+
+/* ===== Reset ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 14px; }
 body {
-  font-family: -apple-system, 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  font-family: 'Noto Sans TC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
+  font-size: var(--body);
 }
-a { color: var(--accent); }
+a { color: var(--cyan); }
 
-/* ===== 頂部標題列 ===== */
-.header {
-  background: var(--bg-secondary);
-  padding: 12px 16px;
+/* ===== 入場動畫 ===== */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  animation: fadeUp 0.7s ease-out forwards;
+}
+@keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+.reveal:nth-child(1) { animation-delay: 0s; }
+.reveal:nth-child(2) { animation-delay: 0.1s; }
+.reveal:nth-child(3) { animation-delay: 0.2s; }
+.reveal:nth-child(4) { animation-delay: 0.3s; }
+
+.hero-number {
+  opacity: 0;
+  animation: countReveal 1s ease-out 0.3s forwards;
+}
+@keyframes countReveal {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.2s !important;
+  }
+}
+
+/* ===== Nav ===== */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: clamp(10px, 2vw, 18px) clamp(16px, 3vw, 40px);
+  background: rgba(10,10,10,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 100;
 }
-.header h1 { font-size: 1.1rem; font-weight: 600; }
-.header .updated { font-size: .75rem; color: var(--text-secondary); }
+.nav-left { display: flex; flex-direction: column; gap: 2px; }
+.nav-title {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: var(--h3);
+  letter-spacing: -0.02em;
+  color: var(--signal);
+}
+.nav-meta {
+  font-size: var(--micro);
+  color: var(--text-dim);
+  font-weight: 300;
+}
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.5vw, 16px);
+}
+.nav-pills { display: flex; gap: 4px; }
+.pill {
+  padding: 5px 14px;
+  border-radius: 100px;
+  font-size: var(--caption);
+  font-weight: 500;
+  font-family: 'Noto Sans TC', sans-serif;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pill:hover { border-color: var(--signal); color: var(--text); }
+.pill.active {
+  background: var(--signal);
+  color: #000;
+  border-color: var(--signal);
+  font-weight: 700;
+}
+.date-range { display: flex; align-items: center; gap: 6px; }
+.date-range input[type="date"] {
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-size: var(--caption);
+  font-family: 'Noto Sans TC', sans-serif;
+}
+.date-range input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+}
+.date-range-sep { color: var(--text-muted); font-size: var(--caption); }
 
-/* ===== 桌機篩選列 ===== */
-.filter-bar {
+/* 桌機篩選 chip（Nav 下方） */
+.desktop-filters {
   display: none;
-  background: var(--bg-secondary);
-  padding: 10px 16px;
-  gap: 12px;
+  padding: 8px clamp(16px, 3vw, 40px);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  gap: clamp(8px, 1.5vw, 16px);
   align-items: center;
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--border);
 }
-.filter-bar label { font-size: .8rem; color: var(--text-secondary); white-space: nowrap; }
-.filter-bar select, .filter-bar input[type="date"] {
-  background: var(--bg-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: .85rem;
-}
-.filter-bar .quick-btns { display: flex; gap: 6px; }
-.filter-bar .quick-btns button {
-  background: var(--bg-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 12px;
-  font-size: .8rem;
-  cursor: pointer;
-  transition: all .2s;
-}
-.filter-bar .quick-btns button:hover,
-.filter-bar .quick-btns button.active {
-  background: var(--accent);
-  color: #111;
-  border-color: var(--accent);
+.desktop-filters label {
+  font-size: var(--caption);
+  color: var(--text-dim);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-/* ===== Chip 篩選樣式 ===== */
-.chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+/* ===== Chip ===== */
+.chip-group { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip {
   background: var(--bg-input);
-  color: var(--text-primary);
+  color: var(--text-dim);
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 4px 14px;
-  font-size: .8rem;
+  font-size: var(--caption);
   cursor: pointer;
-  transition: all .2s;
+  transition: all 0.2s;
   user-select: none;
 }
+.chip:hover { border-color: var(--signal); color: var(--text); }
 .chip.active {
-  background: var(--accent);
-  color: #111;
-  border-color: var(--accent);
+  background: var(--signal);
+  color: #000;
+  border-color: var(--signal);
+  font-weight: 600;
 }
 
-/* ===== 手機 bottom-sheet ===== */
+/* ===== Hero Zone ===== */
+.hero {
+  padding: clamp(24px, 4vw, 60px) clamp(16px, 3vw, 40px);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: clamp(16px, 3vw, 40px);
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.hero-main {}
+.hero-label {
+  font-size: var(--caption);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-weight: 500;
+  margin-bottom: clamp(4px, 0.5vw, 8px);
+}
+.hero-number-row {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(8px, 1.5vw, 16px);
+}
+.hero-number {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: var(--hero);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+.hero-unit {
+  font-size: var(--h2);
+  color: var(--text-dim);
+  font-weight: 300;
+  padding-bottom: clamp(4px, 1vw, 12px);
+}
+
+/* Progress ring */
+.hero-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.hero-ring svg {
+  width: clamp(100px, 14vw, 160px);
+  height: clamp(100px, 14vw, 160px);
+}
+.ring-track { fill: none; stroke: var(--border); stroke-width: 8; }
+.ring-fill {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 1s ease-out;
+}
+.ring-text {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: var(--h2);
+  fill: var(--text);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.ring-sub {
+  font-size: var(--micro);
+  fill: var(--text-dim);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.hero-ring-label {
+  font-size: var(--caption);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* ===== KPI Row ===== */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(10px, 1.5vw, 20px);
+  padding: clamp(16px, 2.5vw, 32px) clamp(16px, 3vw, 40px);
+}
+.kpi-card {
+  padding: clamp(14px, 2vw, 24px);
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+.kpi-card.signal {
+  background: var(--signal);
+  color: #000;
+  border-color: var(--signal);
+}
+.kpi-card.signal .kpi-card-label { color: rgba(0,0,0,0.5); }
+.kpi-card-value {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: var(--h1);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  margin-bottom: 4px;
+}
+.kpi-card-label {
+  font-size: var(--caption);
+  color: var(--text-dim);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.kpi-card-delta {
+  position: absolute;
+  top: clamp(10px, 1.2vw, 16px);
+  right: clamp(10px, 1.2vw, 16px);
+  font-size: var(--micro);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+.delta-up { color: var(--green); background: rgba(118,255,3,0.1); }
+.delta-warn { color: var(--amber); background: rgba(255,214,0,0.1); }
+.delta-down { color: var(--signal); background: var(--signal-dim); }
+
+/* KPI progress bar */
+.kpi-progress {
+  margin-top: clamp(8px, 1vw, 12px);
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.kpi-progress-fill {
+  height: 100%;
+  background: var(--signal);
+  border-radius: 2px;
+  transition: width 1s ease-out;
+}
+
+/* ===== 圖表共用 ===== */
+.chart-block {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: clamp(16px, 2vw, 28px);
+}
+.chart-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: clamp(12px, 2vw, 20px);
+}
+.chart-block-title {
+  font-size: var(--h3);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.chart-block-subtitle {
+  font-size: var(--caption);
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.chart-area { width: 100%; height: clamp(200px, 30vw, 380px); }
+.chart-area-tall { width: 100%; height: clamp(250px, 35vw, 450px); }
+
+/* ===== 主圖表區（2fr + 1fr） ===== */
+.charts-main {
+  padding: clamp(16px, 2.5vw, 32px) clamp(16px, 3vw, 40px);
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: clamp(12px, 2vw, 24px);
+}
+
+/* ===== 客戶排行（卡片列表） ===== */
+.rank-list { list-style: none; display: flex; flex-direction: column; gap: clamp(6px, 1vw, 12px); }
+.rank-item {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1vw, 14px);
+  padding: clamp(10px, 1.5vw, 16px);
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--signal);
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+.rank-item:hover { transform: translateX(4px); background: var(--bg-input); }
+.rank-item.selected { border-left-color: var(--cyan); background: var(--bg-input); }
+.rank-pos {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: var(--h2);
+  color: var(--text-muted);
+  min-width: 2.5ch;
+}
+.rank-info { flex: 1; min-width: 0; }
+.rank-name { font-size: var(--body); font-weight: 500; }
+.rank-sub { font-size: var(--caption); color: var(--text-dim); }
+.rank-value {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: var(--h3);
+  color: var(--signal);
+  white-space: nowrap;
+}
+
+/* ===== 次圖表區（1fr + 1fr） ===== */
+.charts-secondary {
+  padding: 0 clamp(16px, 3vw, 40px) clamp(16px, 2.5vw, 32px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(12px, 2vw, 24px);
+}
+
+/* ===== 全寬區域 ===== */
+.full-section {
+  padding: 0 clamp(16px, 3vw, 40px) clamp(16px, 2.5vw, 32px);
+}
+
+/* ===== 表格 ===== */
+.table-wrap { overflow-x: auto; }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--caption);
+}
+.data-table th, .data-table td {
+  padding: clamp(6px, 1vw, 10px) clamp(8px, 1.2vw, 14px);
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table th {
+  color: var(--text-dim);
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+}
+.data-table td:first-child, .data-table th:first-child { text-align: left; }
+.data-table tr:hover td { background: rgba(255,87,34,0.04); }
+
+/* ===== 手機篩選器 ===== */
+.mobile-filter-trigger {
+  display: none;
+  background: var(--bg-elevated);
+  padding: 10px clamp(16px, 3vw, 40px);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  align-items: center;
+  gap: 8px;
+}
+.mobile-filter-trigger .filter-summary {
+  flex: 1;
+  font-size: var(--caption);
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobile-filter-trigger .arrow {
+  color: var(--signal);
+  font-size: 1.1rem;
+  transition: transform 0.3s;
+}
+
 .bottom-sheet-overlay {
   display: none;
   position: fixed; inset: 0;
-  background: rgba(0,0,0,.5);
+  background: rgba(0,0,0,.6);
   z-index: 200;
   opacity: 0;
   transition: opacity .3s;
 }
 .bottom-sheet-overlay.show { opacity: 1; }
+
 .bottom-sheet {
   display: none;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   border-radius: 16px 16px 0 0;
   z-index: 201;
   transform: translateY(100%);
@@ -131,7 +474,7 @@ a { color: var(--accent); }
 .bottom-sheet.show { transform: translateY(0); }
 .bottom-sheet .handle {
   width: 40px; height: 4px;
-  background: var(--text-secondary);
+  background: var(--text-muted);
   border-radius: 2px;
   margin: 10px auto;
 }
@@ -142,173 +485,103 @@ a { color: var(--accent); }
   padding: 0 16px 12px;
   border-bottom: 1px solid var(--border);
 }
-.bottom-sheet .sheet-header h3 { font-size: 1rem; }
+.bottom-sheet .sheet-header h3 {
+  font-size: var(--h3);
+  font-weight: 600;
+}
 .bottom-sheet .sheet-header button {
-  background: var(--accent);
-  color: #111;
+  background: var(--signal);
+  color: #000;
   border: none;
-  border-radius: 6px;
-  padding: 6px 16px;
-  font-size: .85rem;
+  border-radius: var(--radius);
+  padding: 6px 18px;
+  font-size: var(--caption);
+  font-weight: 700;
   cursor: pointer;
 }
 .bottom-sheet .sheet-body { padding: 16px; }
-.bottom-sheet .sheet-body .filter-section { margin-bottom: 16px; }
-.bottom-sheet .sheet-body .filter-section h4 {
-  font-size: .85rem;
-  color: var(--text-secondary);
+.bottom-sheet .filter-section { margin-bottom: 16px; }
+.bottom-sheet .filter-section h4 {
+  font-size: var(--caption);
+  color: var(--text-dim);
   margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
-
-/* 手機篩選觸發按鈕 */
-.mobile-filter-trigger {
-  display: none;
-  background: var(--bg-secondary);
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
+.bottom-sheet .date-range {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  margin-top: 8px;
 }
-.mobile-filter-trigger .filter-summary {
-  font-size: .8rem;
-  color: var(--text-secondary);
+.bottom-sheet .date-range input[type="date"] {
   flex: 1;
-}
-.mobile-filter-trigger .arrow {
-  color: var(--accent);
-  font-size: 1.2rem;
-}
-
-/* ===== 主內容區 ===== */
-.main { padding: 16px; max-width: 1400px; margin: 0 auto; }
-
-/* ===== KPI 卡片 ===== */
-.kpi-grid {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.kpi-card {
-  background: var(--bg-card);
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
-  box-shadow: var(--shadow);
-}
-.kpi-card .kpi-label {
-  font-size: .75rem;
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-}
-.kpi-card .kpi-value {
-  font-size: 1.6rem;
-  font-weight: 700;
-}
-.kpi-card .kpi-sub {
-  font-size: .75rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-.kpi-card.accent1 .kpi-value { color: var(--accent); }
-.kpi-card.accent2 .kpi-value { color: var(--accent2); }
-.kpi-card.accent3 .kpi-value { color: var(--accent3); }
-.kpi-card.accent4 .kpi-value { color: var(--accent4); }
-
-/* ===== 圖表卡片 ===== */
-.chart-card {
-  background: var(--bg-card);
-  border-radius: var(--radius);
-  padding: 16px;
-  box-shadow: var(--shadow);
-  margin-bottom: 16px;
-}
-.chart-card h3 {
-  font-size: .9rem;
-  margin-bottom: 12px;
-  color: var(--text-secondary);
-}
-.chart-container { width: 100%; height: 300px; }
-.chart-container.tall { height: 400px; }
-
-/* ===== 表格 ===== */
-.table-wrap { overflow-x: auto; }
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .85rem;
-}
-.data-table th, .data-table td {
-  padding: 8px 12px;
-  text-align: right;
-  border-bottom: 1px solid var(--border);
-}
-.data-table th {
-  color: var(--text-secondary);
-  font-weight: 500;
-  position: sticky; top: 0;
-  background: var(--bg-card);
-}
-.data-table td:first-child, .data-table th:first-child { text-align: left; }
-.data-table tr:hover td { background: rgba(79,195,247,.05); }
-
-/* ===== 桌機佈局 ===== */
-.desktop-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
+  padding: 6px 8px;
+  font-size: var(--caption);
 }
 
-/* ===== 響應式 ===== */
+/* ===== RWD ===== */
 @media (min-width: 768px) {
-  .filter-bar { display: flex; }
+  .desktop-filters { display: flex; }
   .mobile-filter-trigger { display: none !important; }
   .bottom-sheet, .bottom-sheet-overlay { display: none !important; }
-  .kpi-grid { grid-template-columns: repeat(4, 1fr); }
-  .desktop-grid { grid-template-columns: repeat(2, 1fr); }
-  .chart-container { height: 350px; }
-  .mobile-only { display: none !important; }
 }
 @media (max-width: 767px) {
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .nav-controls { display: none; }
+  .desktop-filters { display: none !important; }
   .mobile-filter-trigger { display: flex; }
+  .hero { grid-template-columns: 1fr; text-align: center; }
+  .hero-number-row { justify-content: center; }
+  .hero-ring { align-self: center; }
+  .kpi-row { grid-template-columns: 1fr; }
+  .charts-main { grid-template-columns: 1fr; }
+  .charts-secondary { grid-template-columns: 1fr; }
   .desktop-only { display: none !important; }
-  .desktop-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
 <body>
 
-<!-- 標題列 -->
-<div class="header">
-  <h1>北3區 Dashboard</h1>
-  <span class="updated" id="updatedAt"></span>
-</div>
-
-<!-- 桌機篩選列 -->
-<div class="filter-bar" id="filterBar">
-  <label>期間</label>
-  <div class="quick-btns" id="quickBtns">
-    <button data-range="1m">1M</button>
-    <button data-range="3m">3M</button>
-    <button data-range="6m" class="active">6M</button>
-    <button data-range="ytd">YTD</button>
+<!-- ===== Nav ===== -->
+<nav class="nav">
+  <div class="nav-left">
+    <div class="nav-title">北3區 DASHBOARD</div>
+    <div class="nav-meta" id="updatedAt"></div>
   </div>
-  <input type="date" id="dateStart">
-  <span style="color:var(--text-secondary)">~</span>
-  <input type="date" id="dateEnd">
+  <div class="nav-controls">
+    <div class="nav-pills" id="quickBtns">
+      <button class="pill" data-range="1m">1M</button>
+      <button class="pill" data-range="3m">3M</button>
+      <button class="pill active" data-range="6m">6M</button>
+      <button class="pill" data-range="ytd">YTD</button>
+    </div>
+    <div class="date-range">
+      <input type="date" id="dateStart">
+      <span class="date-range-sep">~</span>
+      <input type="date" id="dateEnd">
+    </div>
+  </div>
+</nav>
+
+<!-- ===== 桌機篩選 Chip ===== -->
+<div class="desktop-filters" id="desktopFilters">
   <label>客戶</label>
   <div class="chip-group" id="clientChips"></div>
   <label>產品</label>
   <div class="chip-group" id="productChips"></div>
 </div>
 
-<!-- 手機篩選觸發 -->
+<!-- ===== 手機篩選觸發列 ===== -->
 <div class="mobile-filter-trigger" id="mobileFilterTrigger">
   <span class="filter-summary" id="filterSummary">近6個月 / 全部客戶 / 全部產品</span>
   <span class="arrow">▲</span>
 </div>
 
-<!-- 手機 bottom-sheet -->
+<!-- ===== 手機 Bottom Sheet ===== -->
 <div class="bottom-sheet-overlay" id="sheetOverlay"></div>
 <div class="bottom-sheet" id="bottomSheet">
   <div class="handle"></div>
@@ -319,11 +592,16 @@ a { color: var(--accent); }
   <div class="sheet-body">
     <div class="filter-section">
       <h4>期間</h4>
-      <div class="quick-btns" id="mobileQuickBtns">
-        <button data-range="1m">1M</button>
-        <button data-range="3m">3M</button>
-        <button data-range="6m" class="active">6M</button>
-        <button data-range="ytd">YTD</button>
+      <div class="nav-pills" id="mobileQuickBtns">
+        <button class="pill" data-range="1m">1M</button>
+        <button class="pill" data-range="3m">3M</button>
+        <button class="pill active" data-range="6m">6M</button>
+        <button class="pill" data-range="ytd">YTD</button>
+      </div>
+      <div class="date-range">
+        <input type="date" id="mobileDateStart">
+        <span class="date-range-sep">~</span>
+        <input type="date" id="mobileDateEnd">
       </div>
     </div>
     <div class="filter-section">
@@ -337,56 +615,95 @@ a { color: var(--accent); }
   </div>
 </div>
 
-<!-- 主內容 -->
-<div class="main">
-  <!-- KPI 卡片 -->
-  <div class="kpi-grid" id="kpiGrid"></div>
-
-  <!-- 圖表區 -->
-  <div class="desktop-grid">
-    <div class="chart-card">
-      <h3>週收檢趨勢</h3>
-      <div class="chart-container" id="chartWeekly"></div>
-    </div>
-    <div class="chart-card">
-      <h3>月銷量趨勢</h3>
-      <div class="chart-container" id="chartMonthly"></div>
-    </div>
-    <div class="chart-card">
-      <h3>客戶排行</h3>
-      <div class="chart-container" id="chartClientRank"></div>
-    </div>
-    <div class="chart-card">
-      <h3>規格分佈</h3>
-      <div class="chart-container" id="chartProduct"></div>
-    </div>
-    <div class="chart-card desktop-only" style="grid-column: 1 / -1;">
-      <h3>客戶業績明細</h3>
-      <div class="table-wrap" id="tableWrap"></div>
-    </div>
-    <div class="chart-card desktop-only" style="grid-column: 1 / -1;">
-      <h3>2026 Pred 業績月趨勢</h3>
-      <div class="chart-container tall" id="chartYearPred"></div>
+<!-- ===== Hero Zone ===== -->
+<section class="hero">
+  <div class="hero-main reveal">
+    <div class="hero-label">期間收檢量</div>
+    <div class="hero-number-row">
+      <div class="hero-number" id="heroNumber">—</div>
+      <div class="hero-unit">瓶</div>
     </div>
   </div>
-</div>
+  <div class="hero-ring reveal" id="heroRing"></div>
+</section>
+
+<!-- ===== KPI Row ===== -->
+<div class="kpi-row" id="kpiGrid"></div>
+
+<!-- ===== 主圖表區 ===== -->
+<section class="charts-main">
+  <div class="chart-block reveal">
+    <div class="chart-block-header">
+      <div>
+        <div class="chart-block-title">週收檢趨勢</div>
+        <div class="chart-block-subtitle">堆疊長條 + 累積折線</div>
+      </div>
+    </div>
+    <div class="chart-area" id="chartWeekly"></div>
+  </div>
+  <div class="chart-block reveal">
+    <div class="chart-block-header">
+      <div class="chart-block-title">客戶排行</div>
+    </div>
+    <ul class="rank-list" id="clientRankList"></ul>
+  </div>
+</section>
+
+<!-- ===== 次圖表區 ===== -->
+<section class="charts-secondary">
+  <div class="chart-block reveal">
+    <div class="chart-block-header">
+      <div>
+        <div class="chart-block-title">月銷量趨勢</div>
+        <div class="chart-block-subtitle">依規格分組</div>
+      </div>
+    </div>
+    <div class="chart-area" id="chartMonthly"></div>
+  </div>
+  <div class="chart-block reveal">
+    <div class="chart-block-header">
+      <div>
+        <div class="chart-block-title">規格分佈</div>
+        <div class="chart-block-subtitle">佔比 %</div>
+      </div>
+    </div>
+    <div class="chart-area" id="chartProduct"></div>
+  </div>
+</section>
+
+<!-- ===== 客戶業績明細 ===== -->
+<section class="full-section desktop-only">
+  <div class="chart-block reveal">
+    <div class="chart-block-header">
+      <div class="chart-block-title">客戶業績明細</div>
+    </div>
+    <div class="table-wrap" id="tableWrap"></div>
+  </div>
+</section>
+
+<!-- ===== 2026 年度趨勢 ===== -->
+<section class="full-section desktop-only" style="padding-bottom:clamp(24px,4vw,48px);">
+  <div class="chart-block reveal">
+    <div class="chart-block-header">
+      <div>
+        <div class="chart-block-title">2026 Pred 業績月趨勢</div>
+        <div class="chart-block-subtitle">月 Pred + 累積 + 目標線</div>
+      </div>
+    </div>
+    <div class="chart-area-tall" id="chartYearPred"></div>
+  </div>
+</section>
 
 <script>
-/* ===== 常數與設定 ===== */
+/* ===== 常數 ===== */
 const ENDPOINT = 'YOUR_APPS_SCRIPT_URL';
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
-const COLORS = {
-  '06瓶': '#4fc3f7',
-  '10瓶': '#81c784',
-  '20瓶': '#ffb74d',
-  'PLTgel': '#e57373'
-};
-const ACCENT_CLASSES = ['accent1', 'accent2', 'accent3', 'accent4'];
+const COLORS = { '06瓶': '#00E5FF', '10瓶': '#76FF03', '20瓶': '#FFD600', 'PLTgel': '#FF5722' };
+const MOCK_TARGET = { monthly: 300000, yearly: 3600000 };
 
-/* ===== Mock Data（6個月、5個客戶、4種產品） ===== */
+/* ===== Mock Data ===== */
 function generateMockData() {
   const clients = ['正陽骨科', '仁愛復健', '康寧骨科', '大安診所', '信義復健'];
-  const products = PRODUCTS;
   const priceMap = {
     '正陽骨科': { '06瓶': 1143, '10瓶': 1810, '20瓶': 3333, 'PLTgel': 762 },
     '仁愛復健': { '06瓶': 1100, '10瓶': 1750, '20瓶': 3200, 'PLTgel': 750 },
@@ -394,56 +711,37 @@ function generateMockData() {
     '大安診所': { '06瓶': 1130, '10瓶': 1790, '20瓶': 3300, 'PLTgel': 755 },
     '信義復健': { '06瓶': 1120, '10瓶': 1770, '20瓶': 3280, 'PLTgel': 745 }
   };
-
   const history = [];
   const finance = [];
-
-  // 產生 2025-10 ~ 2026-03 的資料
   for (let m = 0; m < 6; m++) {
     const baseYear = m < 3 ? 2025 : 2026;
     const baseMonth = m < 3 ? 10 + m : m - 2;
     for (const client of clients) {
-      // 每月每客戶 3~6 筆收檢
       const count = 3 + Math.floor(Math.random() * 4);
       for (let i = 0; i < count; i++) {
         const day = 1 + Math.floor(Math.random() * 28);
         const adjDay = Math.min(day + Math.floor(Math.random() * 14), 28);
-        const prod = products[Math.floor(Math.random() * products.length)];
+        const prod = PRODUCTS[Math.floor(Math.random() * PRODUCTS.length)];
         const qty = 1 + Math.floor(Math.random() * 8);
-        const reportDate = `${baseYear}-${String(baseMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const adjDate = `${baseYear}-${String(baseMonth).padStart(2, '0')}-${String(adjDay).padStart(2, '0')}`;
+        const reportDate = `${baseYear}-${String(baseMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const adjDate = `${baseYear}-${String(baseMonth).padStart(2,'0')}-${String(adjDay).padStart(2,'0')}`;
         history.push({ ReportDate: reportDate, AdjDate: adjDate, Client: client, Product: prod, Qty: qty });
       }
-      // 每月每客戶一筆財務
       const revenue = 80000 + Math.floor(Math.random() * 120000);
-      finance.push({
-        '日期': `${baseYear}-${String(baseMonth).padStart(2, '0')}-01`,
-        '客戶': client,
-        '業績': revenue
-      });
+      finance.push({ '日期': `${baseYear}-${String(baseMonth).padStart(2,'0')}-01`, '客戶': client, '業績': revenue });
     }
   }
-
   const price = clients.map(c => ({ '客戶': c, ...priceMap[c] }));
-  return {
-    history,
-    finance,
-    price,
-    updatedAt: new Date().toISOString()
-  };
+  return { history, finance, price, target: MOCK_TARGET, updatedAt: new Date().toISOString() };
 }
 
-/* ===== Helper：月份認列（AdjDate >= 16 算下個月） ===== */
+/* ===== Helpers ===== */
 function getAccountingMonth(adjDate) {
   const d = new Date(adjDate);
-  const day = d.getDate();
-  if (day >= 16) {
-    d.setMonth(d.getMonth() + 1);
-  }
+  if (d.getDate() >= 16) d.setMonth(d.getMonth() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-/* ===== Helper：取得 ISO 週的週一日期 ===== */
 function getISOWeekMonday(dateStr) {
   const d = new Date(dateStr);
   const day = d.getDay();
@@ -453,7 +751,6 @@ function getISOWeekMonday(dateStr) {
   return monday.toISOString().slice(0, 10);
 }
 
-/* ===== Helper：日期格式化 ===== */
 function fmtDate(d) { return d.toISOString().slice(0, 10); }
 function fmtNum(n) { return n.toLocaleString('zh-TW'); }
 function fmtMoney(n) {
@@ -461,7 +758,6 @@ function fmtMoney(n) {
   return fmtNum(n);
 }
 
-/* ===== 篩選資料 ===== */
 function filterData(raw, st) {
   return raw.history.filter(r => {
     if (st.dateRange.start && r.AdjDate < st.dateRange.start) return false;
@@ -482,6 +778,24 @@ function filterFinance(raw, st) {
   });
 }
 
+function buildPriceMap(priceArr) {
+  const m = {};
+  for (const row of priceArr) {
+    m[row['客戶']] = {};
+    for (const p of PRODUCTS) { if (row[p]) m[row['客戶']][p] = row[p]; }
+  }
+  return m;
+}
+
+function calcPredRevenue(records, priceMap) {
+  let total = 0;
+  for (const r of records) {
+    const p = priceMap[r.Client];
+    if (p && p[r.Product]) total += p[r.Product] * r.Qty;
+  }
+  return total;
+}
+
 /* ===== Global State ===== */
 const today = new Date();
 const sixMonthsAgo = new Date(today);
@@ -497,70 +811,55 @@ let rawData = null;
 let allClients = [];
 let charts = {};
 
-/* ===== 建立價格查詢表 ===== */
-function buildPriceMap(priceArr) {
-  const m = {};
-  for (const row of priceArr) {
-    m[row['客戶']] = {};
-    for (const p of PRODUCTS) {
-      if (row[p]) m[row['客戶']][p] = row[p];
-    }
-  }
-  return m;
-}
-
-/* ===== 計算 Pred 業績 ===== */
-function calcPredRevenue(records, priceMap) {
-  let total = 0;
-  for (const r of records) {
-    const p = priceMap[r.Client];
-    if (p && p[r.Product]) {
-      total += p[r.Product] * r.Qty;
-    }
-  }
-  return total;
-}
-
-/* ===== 初始化篩選 UI ===== */
+/* ===== 篩選器邏輯 ===== */
 function initFilters() {
   allClients = [...new Set(rawData.history.map(r => r.Client))].sort();
 
-  // 桌機 chip
   renderChips('clientChips', allClients, state.clients, 'clients');
   renderChips('productChips', PRODUCTS, state.products, 'products');
-  // 手機 chip
   renderChips('mobileClientChips', allClients, state.clients, 'clients');
   renderChips('mobileProductChips', PRODUCTS, state.products, 'products');
 
-  // 日期輸入
+  // 桌機日期
   document.getElementById('dateStart').value = state.dateRange.start;
   document.getElementById('dateEnd').value = state.dateRange.end;
   document.getElementById('dateStart').addEventListener('change', e => {
     state.dateRange.start = e.target.value;
+    clearActivePills();
     render();
   });
   document.getElementById('dateEnd').addEventListener('change', e => {
     state.dateRange.end = e.target.value;
+    clearActivePills();
     render();
   });
 
-  // 快速期間按鈕
+  // 手機日期
+  document.getElementById('mobileDateStart').value = state.dateRange.start;
+  document.getElementById('mobileDateEnd').value = state.dateRange.end;
+  document.getElementById('mobileDateStart').addEventListener('change', e => {
+    state.dateRange.start = e.target.value;
+    document.getElementById('dateStart').value = e.target.value;
+    clearActivePills();
+  });
+  document.getElementById('mobileDateEnd').addEventListener('change', e => {
+    state.dateRange.end = e.target.value;
+    document.getElementById('dateEnd').value = e.target.value;
+    clearActivePills();
+  });
+
   setupQuickBtns('quickBtns');
   setupQuickBtns('mobileQuickBtns');
 
-  // 手機 bottom-sheet
+  // Bottom sheet
   const trigger = document.getElementById('mobileFilterTrigger');
   const overlay = document.getElementById('sheetOverlay');
   const sheet = document.getElementById('bottomSheet');
   const apply = document.getElementById('sheetApply');
-
   trigger.addEventListener('click', () => {
     sheet.style.display = 'block';
     overlay.style.display = 'block';
-    requestAnimationFrame(() => {
-      sheet.classList.add('show');
-      overlay.classList.add('show');
-    });
+    requestAnimationFrame(() => { sheet.classList.add('show'); overlay.classList.add('show'); });
   });
   const closeSheet = () => {
     sheet.classList.remove('show');
@@ -582,7 +881,6 @@ function renderChips(containerId, items, selected, field) {
       const idx = state[field].indexOf(item);
       if (idx >= 0) state[field].splice(idx, 1);
       else state[field].push(item);
-      // 同步桌機和手機 chip
       syncChips(field);
       if (window.innerWidth >= 768) render();
     });
@@ -591,49 +889,89 @@ function renderChips(containerId, items, selected, field) {
 }
 
 function syncChips(field) {
-  const desktopId = field === 'clients' ? 'clientChips' : 'productChips';
-  const mobileId = field === 'clients' ? 'mobileClientChips' : 'mobileProductChips';
   const items = field === 'clients' ? allClients : PRODUCTS;
-  renderChips(desktopId, items, state[field], field);
-  renderChips(mobileId, items, state[field], field);
+  renderChips(field === 'clients' ? 'clientChips' : 'productChips', items, state[field], field);
+  renderChips(field === 'clients' ? 'mobileClientChips' : 'mobileProductChips', items, state[field], field);
+}
+
+function clearActivePills() {
+  document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
 }
 
 function setupQuickBtns(containerId) {
-  const btns = document.querySelectorAll(`#${containerId} button`);
+  const btns = document.querySelectorAll(`#${containerId} .pill`);
   btns.forEach(btn => {
     btn.addEventListener('click', () => {
-      btns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const range = btn.dataset.range;
+      // 清除所有 pill active 然後設定當前
+      document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll(`.pill[data-range="${btn.dataset.range}"]`).forEach(b => b.classList.add('active'));
+
       const now = new Date();
       let start;
+      const range = btn.dataset.range;
       if (range === '1m') { start = new Date(now); start.setMonth(start.getMonth() - 1); }
       else if (range === '3m') { start = new Date(now); start.setMonth(start.getMonth() - 3); }
       else if (range === '6m') { start = new Date(now); start.setMonth(start.getMonth() - 6); }
       else if (range === 'ytd') { start = new Date(now.getFullYear(), 0, 1); }
       state.dateRange.start = fmtDate(start);
       state.dateRange.end = fmtDate(now);
+
+      // 同步所有 date input
       document.getElementById('dateStart').value = state.dateRange.start;
       document.getElementById('dateEnd').value = state.dateRange.end;
+      document.getElementById('mobileDateStart').value = state.dateRange.start;
+      document.getElementById('mobileDateEnd').value = state.dateRange.end;
+
       if (window.innerWidth >= 768) render();
     });
   });
 }
 
-/* ===== 更新篩選摘要文字 ===== */
 function updateFilterSummary() {
   const cs = state.clients.length ? state.clients.join(', ') : '全部客戶';
   const ps = state.products.length ? state.products.join(', ') : '全部產品';
-  const txt = `${state.dateRange.start} ~ ${state.dateRange.end} / ${cs} / ${ps}`;
   const el = document.getElementById('filterSummary');
-  if (el) el.textContent = txt;
+  if (el) el.textContent = `${state.dateRange.start} ~ ${state.dateRange.end} / ${cs} / ${ps}`;
 }
 
-/* ===== KPI 卡片 ===== */
+/* ===== Hero 渲染 ===== */
+function renderHero(filtered) {
+  const totalQty = filtered.reduce((s, r) => s + r.Qty, 0);
+  document.getElementById('heroNumber').textContent = fmtNum(totalQty);
+
+  // Progress ring
+  const priceMap = buildPriceMap(rawData.price);
+  const predRevenue = calcPredRevenue(filtered, priceMap);
+  const target = rawData.target ? rawData.target.yearly : MOCK_TARGET.yearly;
+  const pct = target > 0 ? Math.min((predRevenue / target) * 100, 100) : 0;
+  const circumference = 2 * Math.PI * 45;
+  const offset = circumference - (pct / 100) * circumference;
+
+  const ringEl = document.getElementById('heroRing');
+  ringEl.innerHTML = `
+    <svg viewBox="0 0 100 100">
+      <circle class="ring-track" cx="50" cy="50" r="45"/>
+      <circle class="ring-fill" cx="50" cy="50" r="45"
+        stroke-dasharray="${circumference}"
+        stroke-dashoffset="${offset}"/>
+      <text class="ring-text" x="50" y="46">${pct.toFixed(0)}%</text>
+      <text class="ring-sub" x="50" y="60">達成率</text>
+    </svg>
+    <div class="hero-ring-label">Pred ${fmtMoney(predRevenue)} / 目標 ${fmtMoney(target)}</div>
+  `;
+}
+
+/* ===== KPI 渲染 ===== */
 function renderKPI(filtered) {
   const priceMap = buildPriceMap(rawData.price);
   const isMobile = window.innerWidth < 768;
   const grid = document.getElementById('kpiGrid');
+  const predRevenue = calcPredRevenue(filtered, priceMap);
+  const finFiltered = filterFinance(rawData, state);
+  const officialRevenue = finFiltered.reduce((s, r) => s + r['業績'], 0);
+  const diffPct = officialRevenue ? ((predRevenue - officialRevenue) / officialRevenue * 100).toFixed(1) : 'N/A';
+  const target = rawData.target ? rawData.target.yearly : MOCK_TARGET.yearly;
+  const achievePct = target > 0 ? (predRevenue / target * 100).toFixed(1) : 0;
 
   // 本週
   const thisMonday = getISOWeekMonday(fmtDate(today));
@@ -647,95 +985,79 @@ function renderKPI(filtered) {
   const monthRecords = filtered.filter(r => getAccountingMonth(r.AdjDate) === thisMonthStr);
   const monthQty = monthRecords.reduce((s, r) => s + r.Qty, 0);
 
-  // Pred 業績
-  const predRevenue = calcPredRevenue(filtered, priceMap);
-
-  // 官方業績
-  const finFiltered = filterFinance(rawData, state);
-  const officialRevenue = finFiltered.reduce((s, r) => s + r['業績'], 0);
-  const diffPct = officialRevenue ? ((predRevenue - officialRevenue) / officialRevenue * 100).toFixed(1) : 'N/A';
-
   if (isMobile) {
     grid.innerHTML = `
-      <div class="kpi-card accent1"><div class="kpi-label">本週收檢量</div><div class="kpi-value">${fmtNum(weekQty)}</div><div class="kpi-sub">本週 ${thisMonday}</div></div>
-      <div class="kpi-card accent2"><div class="kpi-label">本月收檢量</div><div class="kpi-value">${fmtNum(monthQty)}</div><div class="kpi-sub">${thisMonthStr}</div></div>
-      <div class="kpi-card accent3"><div class="kpi-label">本月 Pred 業績</div><div class="kpi-value">${fmtMoney(calcPredRevenue(monthRecords, priceMap))}</div></div>
+      <div class="kpi-card signal reveal"><div class="kpi-card-value">${fmtNum(weekQty)}</div><div class="kpi-card-label">本週收檢</div></div>
+      <div class="kpi-card reveal" style="border-left:3px solid var(--cyan)"><div class="kpi-card-value">${fmtNum(monthQty)}</div><div class="kpi-card-label">本月收檢</div></div>
+      <div class="kpi-card reveal" style="border-left:3px solid var(--green)"><div class="kpi-card-value">${fmtMoney(calcPredRevenue(monthRecords, priceMap))}</div><div class="kpi-card-label">本月 Pred</div></div>
     `;
   } else {
+    const deltaClass = parseFloat(diffPct) >= 0 ? 'delta-up' : 'delta-down';
     grid.innerHTML = `
-      <div class="kpi-card accent1"><div class="kpi-label">期間收檢量</div><div class="kpi-value">${fmtNum(filtered.reduce((s,r)=>s+r.Qty,0))}</div><div class="kpi-sub">${state.dateRange.start} ~ ${state.dateRange.end}</div></div>
-      <div class="kpi-card accent2"><div class="kpi-label">Pred 業績</div><div class="kpi-value">${fmtMoney(predRevenue)}</div></div>
-      <div class="kpi-card accent3"><div class="kpi-label">官方業績</div><div class="kpi-value">${fmtMoney(officialRevenue)}</div></div>
-      <div class="kpi-card accent4"><div class="kpi-label">差異</div><div class="kpi-value">${diffPct}%</div></div>
+      <div class="kpi-card signal reveal"><div class="kpi-card-value">${fmtMoney(predRevenue)}</div><div class="kpi-card-label">Pred 業績</div></div>
+      <div class="kpi-card reveal"><div class="kpi-card-delta ${deltaClass}">${diffPct > 0 ? '+' : ''}${diffPct}%</div><div class="kpi-card-value">${fmtMoney(officialRevenue)}</div><div class="kpi-card-label">官方業績</div></div>
+      <div class="kpi-card reveal"><div class="kpi-card-value" style="color:${parseFloat(diffPct) >= 0 ? 'var(--green)' : 'var(--signal)'}">${diffPct > 0 ? '+' : ''}${diffPct}%</div><div class="kpi-card-label">Pred vs 官方</div></div>
+      <div class="kpi-card reveal"><div class="kpi-card-value">${achievePct}%</div><div class="kpi-card-label">目標達成率</div><div class="kpi-progress"><div class="kpi-progress-fill" style="width:${Math.min(achievePct, 100)}%"></div></div></div>
     `;
   }
 }
 
 /* ===== 圖表初始化 ===== */
 function initCharts() {
-  const theme = { backgroundColor: 'transparent' };
-  charts.weekly = echarts.init(document.getElementById('chartWeekly'), 'dark');
-  charts.monthly = echarts.init(document.getElementById('chartMonthly'), 'dark');
-  charts.clientRank = echarts.init(document.getElementById('chartClientRank'), 'dark');
-  charts.product = echarts.init(document.getElementById('chartProduct'), 'dark');
-  const yearPredEl = document.getElementById('chartYearPred');
-  if (yearPredEl) charts.yearPred = echarts.init(yearPredEl, 'dark');
+  charts.weekly = echarts.init(document.getElementById('chartWeekly'));
+  charts.monthly = echarts.init(document.getElementById('chartMonthly'));
+  charts.product = echarts.init(document.getElementById('chartProduct'));
+  const yearEl = document.getElementById('chartYearPred');
+  if (yearEl && yearEl.offsetParent !== null) charts.yearPred = echarts.init(yearEl);
 
-  // Resize observer
   const ro = new ResizeObserver(() => {
     Object.values(charts).forEach(c => c && c.resize());
   });
-  document.querySelectorAll('.chart-container').forEach(el => ro.observe(el));
+  document.querySelectorAll('.chart-area, .chart-area-tall').forEach(el => ro.observe(el));
 
-  // 點擊事件
+  // Click handlers
   charts.weekly.on('click', params => {
     if (params.name) {
       const monday = params.name;
-      const sunday = new Date(monday);
-      sunday.setDate(sunday.getDate() + 6);
+      const sun = new Date(monday);
+      sun.setDate(sun.getDate() + 6);
       state.dateRange.start = monday;
-      state.dateRange.end = fmtDate(sunday);
+      state.dateRange.end = fmtDate(sun);
+      clearActivePills();
+      syncDateInputs();
       render();
     }
   });
-
   charts.monthly.on('click', params => {
     if (params.name) {
-      const ym = params.name;
-      const [y, m] = ym.split('-').map(Number);
+      const [y, m] = params.name.split('-').map(Number);
       state.dateRange.start = `${y}-${String(m).padStart(2,'0')}-01`;
-      const last = new Date(y, m, 0);
-      state.dateRange.end = fmtDate(last);
+      state.dateRange.end = fmtDate(new Date(y, m, 0));
+      clearActivePills();
+      syncDateInputs();
       render();
     }
   });
-
-  charts.clientRank.on('click', params => {
-    if (params.name) {
-      const client = params.name;
-      const idx = state.clients.indexOf(client);
-      if (idx >= 0) state.clients.splice(idx, 1);
-      else state.clients.push(client);
-      syncChips('clients');
-      render();
-    }
-  });
-
   charts.product.on('click', params => {
     if (params.name) {
-      const prod = params.name;
-      const idx = state.products.indexOf(prod);
+      const idx = state.products.indexOf(params.name);
       if (idx >= 0) state.products.splice(idx, 1);
-      else state.products.push(prod);
+      else state.products.push(params.name);
       syncChips('products');
       render();
     }
   });
 }
 
-/* ===== 週收檢趨勢圖 ===== */
+function syncDateInputs() {
+  document.getElementById('dateStart').value = state.dateRange.start;
+  document.getElementById('dateEnd').value = state.dateRange.end;
+  document.getElementById('mobileDateStart').value = state.dateRange.start;
+  document.getElementById('mobileDateEnd').value = state.dateRange.end;
+}
+
+/* ===== 週收檢趨勢 ===== */
 function renderWeeklyChart(filtered) {
-  // 依 ISO 週分組
   const weekMap = {};
   for (const r of filtered) {
     const mon = getISOWeekMonday(r.AdjDate);
@@ -744,66 +1066,50 @@ function renderWeeklyChart(filtered) {
     weekMap[mon][r.Product] += r.Qty;
   }
   const weeks = Object.keys(weekMap).sort();
-
   const isMobile = window.innerWidth < 768;
+  const tooltipStyle = { backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' } };
+  const axLine = { lineStyle: { color: '#222' } };
+  const axLabel = { color: '#666' };
+  const splitStyle = { lineStyle: { color: '#1a1a1a' } };
 
   if (isMobile) {
-    // 手機：簡單長條圖
     const totals = weeks.map(w => Object.values(weekMap[w]).reduce((s, v) => s + v, 0));
     charts.weekly.setOption({
       backgroundColor: 'transparent',
       grid: { left: 40, right: 16, top: 20, bottom: 40 },
-      xAxis: { type: 'category', data: weeks, axisLabel: { rotate: 45, fontSize: 10 } },
-      yAxis: { type: 'value' },
+      xAxis: { type: 'category', data: weeks, axisLabel: { rotate: 45, fontSize: 10, color: '#666' }, axisLine: axLine },
+      yAxis: { type: 'value', splitLine: splitStyle, axisLabel: axLabel },
       series: [{ type: 'bar', data: totals, itemStyle: { color: COLORS['06瓶'] } }],
-      tooltip: { trigger: 'axis' }
+      tooltip: { trigger: 'axis', ...tooltipStyle }
     }, true);
   } else {
-    // 桌機：堆疊長條 + 累積折線
     const series = PRODUCTS.map(p => ({
-      name: p,
-      type: 'bar',
-      stack: 'total',
+      name: p, type: 'bar', stack: 'total',
       data: weeks.map(w => (weekMap[w] && weekMap[w][p]) || 0),
       itemStyle: { color: COLORS[p] }
     }));
-    // 累積折線
-    const cumData = [];
-    let cum = 0;
-    for (const w of weeks) {
-      cum += Object.values(weekMap[w]).reduce((s, v) => s + v, 0);
-      cumData.push(cum);
-    }
+    const cumData = []; let cum = 0;
+    for (const w of weeks) { cum += Object.values(weekMap[w]).reduce((s, v) => s + v, 0); cumData.push(cum); }
     series.push({
-      name: '累積',
-      type: 'line',
-      yAxisIndex: 1,
-      data: cumData,
-      smooth: true,
-      lineStyle: { color: '#fff', width: 2 },
-      itemStyle: { color: '#fff' },
-      symbol: 'circle',
-      symbolSize: 4
+      name: '累積', type: 'line', yAxisIndex: 1, data: cumData, smooth: true,
+      lineStyle: { color: '#fff', width: 2 }, itemStyle: { color: '#fff' }, symbol: 'circle', symbolSize: 4
     });
-
     charts.weekly.setOption({
       backgroundColor: 'transparent',
       grid: { left: 50, right: 60, top: 40, bottom: 40 },
-      legend: { data: [...PRODUCTS, '累積'], textStyle: { color: '#aaa', fontSize: 11 }, top: 4 },
-      xAxis: { type: 'category', data: weeks, axisLabel: { rotate: 30, fontSize: 11 } },
+      legend: { data: [...PRODUCTS, '累積'], textStyle: { color: '#666', fontSize: 11 }, top: 0 },
+      xAxis: { type: 'category', data: weeks, axisLabel: { rotate: 30, fontSize: 11, color: '#666' }, axisLine: axLine },
       yAxis: [
-        { type: 'value', name: '數量' },
-        { type: 'value', name: '累積', position: 'right' }
+        { type: 'value', name: '數量', splitLine: splitStyle, axisLabel: axLabel },
+        { type: 'value', name: '累積', position: 'right', splitLine: { show: false }, axisLabel: axLabel }
       ],
-      series,
-      tooltip: { trigger: 'axis' }
+      series, tooltip: { trigger: 'axis', ...tooltipStyle }
     }, true);
   }
 }
 
-/* ===== 月銷量趨勢圖 ===== */
+/* ===== 月銷量趨勢 ===== */
 function renderMonthlyChart(filtered) {
-  // 依會計月+產品分組
   const monthMap = {};
   for (const r of filtered) {
     const m = getAccountingMonth(r.AdjDate);
@@ -813,74 +1119,37 @@ function renderMonthlyChart(filtered) {
   }
   const months = Object.keys(monthMap).sort();
   const isMobile = window.innerWidth < 768;
+  const tooltipStyle = { backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' } };
 
   if (isMobile) {
-    // 手機：堆疊長條
     const series = PRODUCTS.map(p => ({
-      name: p,
-      type: 'bar',
-      stack: 'total',
+      name: p, type: 'bar', stack: 'total',
       data: months.map(m => (monthMap[m] && monthMap[m][p]) || 0),
       itemStyle: { color: COLORS[p] }
     }));
     charts.monthly.setOption({
       backgroundColor: 'transparent',
       grid: { left: 40, right: 16, top: 40, bottom: 30 },
-      legend: { data: PRODUCTS, textStyle: { color: '#aaa', fontSize: 10 }, top: 4 },
-      xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11 } },
-      yAxis: { type: 'value' },
-      series,
-      tooltip: { trigger: 'axis' }
+      legend: { data: PRODUCTS, textStyle: { color: '#666', fontSize: 10 }, top: 0 },
+      xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11, color: '#666' }, axisLine: { lineStyle: { color: '#222' } } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#1a1a1a' } }, axisLabel: { color: '#666' } },
+      series, tooltip: { trigger: 'axis', ...tooltipStyle }
     }, true);
   } else {
-    // 桌機：分組長條
     const series = PRODUCTS.map(p => ({
-      name: p,
-      type: 'bar',
+      name: p, type: 'bar',
       data: months.map(m => (monthMap[m] && monthMap[m][p]) || 0),
       itemStyle: { color: COLORS[p] }
     }));
     charts.monthly.setOption({
       backgroundColor: 'transparent',
       grid: { left: 50, right: 20, top: 40, bottom: 30 },
-      legend: { data: PRODUCTS, textStyle: { color: '#aaa', fontSize: 11 }, top: 4 },
-      xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11 } },
-      yAxis: { type: 'value', name: '數量' },
-      series,
-      tooltip: { trigger: 'axis' }
+      legend: { data: PRODUCTS, textStyle: { color: '#666', fontSize: 11 }, top: 0 },
+      xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11, color: '#666' }, axisLine: { lineStyle: { color: '#222' } } },
+      yAxis: { type: 'value', name: '數量', splitLine: { lineStyle: { color: '#1a1a1a' } }, axisLabel: { color: '#666' } },
+      series, tooltip: { trigger: 'axis', ...tooltipStyle }
     }, true);
   }
-}
-
-/* ===== 客戶排行（水平長條） ===== */
-function renderClientRank(filtered) {
-  const clientMap = {};
-  for (const r of filtered) {
-    if (!clientMap[r.Client]) clientMap[r.Client] = 0;
-    clientMap[r.Client] += r.Qty;
-  }
-  const sorted = Object.entries(clientMap).sort((a, b) => a[1] - b[1]);
-  const clients = sorted.map(s => s[0]);
-  const values = sorted.map(s => s[1]);
-
-  charts.clientRank.setOption({
-    backgroundColor: 'transparent',
-    grid: { left: 90, right: 30, top: 10, bottom: 20 },
-    xAxis: { type: 'value' },
-    yAxis: { type: 'category', data: clients, axisLabel: { fontSize: 12 } },
-    series: [{
-      type: 'bar',
-      data: values,
-      itemStyle: {
-        color: params => {
-          const c = clients[params.dataIndex];
-          return state.clients.includes(c) ? COLORS['06瓶'] : '#5a6a8a';
-        }
-      },
-      label: { show: true, position: 'right', fontSize: 11, color: '#ccc' }
-    }],
-    tooltip: { trigger: 'axis' }
-  }, true);
 }
 
 /* ===== 規格甜甜圈 ===== */
@@ -891,23 +1160,50 @@ function renderProductDonut(filtered) {
     prodMap[r.Product] += r.Qty;
   }
   const data = PRODUCTS.filter(p => prodMap[p]).map(p => ({
-    name: p,
-    value: prodMap[p],
-    itemStyle: { color: COLORS[p] }
+    name: p, value: prodMap[p], itemStyle: { color: COLORS[p] }
   }));
-
   charts.product.setOption({
     backgroundColor: 'transparent',
     series: [{
-      type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['50%', '50%'],
-      data,
-      label: { color: '#ccc', fontSize: 12, formatter: '{b}\n{d}%' },
-      emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,.5)' } }
+      type: 'pie', radius: ['40%', '72%'], center: ['50%', '50%'], data,
+      label: { color: '#999', fontSize: 12, formatter: '{b}\n{d}%' },
+      emphasis: { scaleSize: 6 }
     }],
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' }
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' } }
   }, true);
+}
+
+/* ===== 客戶排行（卡片列表） ===== */
+function renderClientRank(filtered) {
+  const priceMap = buildPriceMap(rawData.price);
+  const clientMap = {};
+  for (const r of filtered) {
+    if (!clientMap[r.Client]) clientMap[r.Client] = { qty: 0, pred: 0 };
+    clientMap[r.Client].qty += r.Qty;
+    const p = priceMap[r.Client];
+    if (p && p[r.Product]) clientMap[r.Client].pred += p[r.Product] * r.Qty;
+  }
+  const sorted = Object.entries(clientMap).sort((a, b) => b[1].qty - a[1].qty);
+  const list = document.getElementById('clientRankList');
+  list.innerHTML = sorted.map(([name, data], i) => `
+    <li class="rank-item${state.clients.includes(name) ? ' selected' : ''}" data-client="${name}">
+      <span class="rank-pos">${String(i + 1).padStart(2, '0')}</span>
+      <div class="rank-info"><div class="rank-name">${name}</div><div class="rank-sub">${fmtNum(data.qty)} 瓶</div></div>
+      <span class="rank-value">${fmtMoney(data.pred)}</span>
+    </li>
+  `).join('');
+
+  // Click handler
+  list.querySelectorAll('.rank-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const client = item.dataset.client;
+      const idx = state.clients.indexOf(client);
+      if (idx >= 0) state.clients.splice(idx, 1);
+      else state.clients.push(client);
+      syncChips('clients');
+      render();
+    });
+  });
 }
 
 /* ===== 客戶業績明細表 ===== */
@@ -924,8 +1220,6 @@ function renderTable(filtered) {
     const p = priceMap[r.Client];
     if (p && p[r.Product]) clientData[r.Client].pred += p[r.Product] * r.Qty;
   }
-
-  // 官方業績 by 客戶
   const finFiltered = filterFinance(rawData, state);
   const officialByClient = {};
   for (const f of finFiltered) {
@@ -935,7 +1229,7 @@ function renderTable(filtered) {
 
   let html = '<table class="data-table"><thead><tr><th>客戶</th>';
   for (const p of PRODUCTS) html += `<th>${p}</th>`;
-  html += '<th>總量</th><th>Pred業績</th><th>官方業績</th><th>差異%</th></tr></thead><tbody>';
+  html += '<th>總量</th><th>Pred</th><th>官方</th><th>差異%</th></tr></thead><tbody>';
 
   const sortedClients = Object.entries(clientData).sort((a, b) => b[1].pred - a[1].pred);
   for (const [client, data] of sortedClients) {
@@ -949,11 +1243,10 @@ function renderTable(filtered) {
   wrap.innerHTML = html;
 }
 
-/* ===== 2026 Pred 業績月趨勢 ===== */
+/* ===== 2026 年度趨勢 ===== */
 function renderYearPred() {
   if (!charts.yearPred) return;
   const priceMap = buildPriceMap(rawData.price);
-  // 只取 2026 年資料
   const records2026 = rawData.history.filter(r => r.AdjDate.startsWith('2026'));
   const monthMap = {};
   for (const r of records2026) {
@@ -963,30 +1256,34 @@ function renderYearPred() {
     const p = priceMap[r.Client];
     if (p && p[r.Product]) monthMap[m] += p[r.Product] * r.Qty;
   }
-
   const months = [];
   for (let i = 1; i <= 12; i++) months.push(`2026-${String(i).padStart(2, '0')}`);
   const values = months.map(m => monthMap[m] || 0);
-
-  // 累積
-  const cumValues = [];
-  let cum = 0;
+  const cumValues = []; let cum = 0;
   for (const v of values) { cum += v; cumValues.push(cum); }
+
+  const monthlyTarget = rawData.target ? rawData.target.monthly : MOCK_TARGET.monthly;
+  const cumTargetValues = months.map((_, i) => monthlyTarget * (i + 1));
 
   charts.yearPred.setOption({
     backgroundColor: 'transparent',
-    grid: { left: 70, right: 70, top: 40, bottom: 30 },
-    legend: { data: ['月 Pred', '累積'], textStyle: { color: '#aaa' }, top: 4 },
-    xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11 } },
+    grid: { left: 70, right: 70, top: 50, bottom: 30 },
+    legend: { data: ['月 Pred', '累積', '目標'], textStyle: { color: '#666' }, top: 4 },
+    xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11, color: '#666' }, axisLine: { lineStyle: { color: '#222' } } },
     yAxis: [
-      { type: 'value', name: 'Pred業績', axisLabel: { formatter: v => fmtMoney(v) } },
-      { type: 'value', name: '累積', position: 'right', axisLabel: { formatter: v => fmtMoney(v) } }
+      { type: 'value', name: 'Pred', axisLabel: { formatter: v => fmtMoney(v), color: '#666' }, splitLine: { lineStyle: { color: '#1a1a1a' } } },
+      { type: 'value', name: '累積', position: 'right', axisLabel: { formatter: v => fmtMoney(v), color: '#666' }, splitLine: { show: false } }
     ],
     series: [
       { name: '月 Pred', type: 'bar', data: values, itemStyle: { color: COLORS['06瓶'] } },
-      { name: '累積', type: 'line', yAxisIndex: 1, data: cumValues, smooth: true, lineStyle: { color: COLORS['PLTgel'], width: 2 }, itemStyle: { color: COLORS['PLTgel'] } }
+      { name: '累積', type: 'line', yAxisIndex: 1, data: cumValues, smooth: true, lineStyle: { color: '#FF5722', width: 2 }, itemStyle: { color: '#FF5722' } },
+      { name: '目標', type: 'line', yAxisIndex: 1, data: cumTargetValues, lineStyle: { color: '#fff', width: 1, type: 'dashed' }, itemStyle: { color: '#fff' }, symbol: 'none' }
     ],
-    tooltip: { trigger: 'axis', formatter: params => params.map(p => `${p.seriesName}: ${fmtMoney(p.value)}`).join('<br>') }
+    tooltip: {
+      trigger: 'axis',
+      formatter: params => params.map(p => `${p.seriesName}: ${fmtMoney(p.value)}`).join('<br>'),
+      backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' }
+    }
   }, true);
 }
 
@@ -995,11 +1292,12 @@ function render() {
   if (!rawData) return;
   const filtered = filterData(rawData, state);
   updateFilterSummary();
+  renderHero(filtered);
   renderKPI(filtered);
   renderWeeklyChart(filtered);
   renderMonthlyChart(filtered);
-  renderClientRank(filtered);
   renderProductDonut(filtered);
+  renderClientRank(filtered);
   renderTable(filtered);
   renderYearPred();
 }
@@ -1011,7 +1309,6 @@ async function loadData() {
     if (!resp.ok) throw new Error('fetch failed');
     rawData = await resp.json();
   } catch {
-    console.log('使用 mock data');
     rawData = generateMockData();
   }
   document.getElementById('updatedAt').textContent = '更新: ' + new Date(rawData.updatedAt).toLocaleString('zh-TW');
@@ -1020,15 +1317,15 @@ async function loadData() {
   render();
 }
 
-/* ===== 視窗 resize 重繪 ===== */
+/* ===== Resize ===== */
 window.addEventListener('resize', () => {
   Object.values(charts).forEach(c => c && c.resize());
   render();
 });
 
-/* ===== Service Worker 註冊 ===== */
+/* ===== Service Worker ===== */
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW 註冊失敗:', err));
+  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW:', err));
 }
 
 /* ===== 啟動 ===== */

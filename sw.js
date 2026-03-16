@@ -1,9 +1,10 @@
-const CACHE_NAME = 'dashboard-pwa-v1';
+const CACHE_NAME = 'dashboard-pwa-v2';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  'https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js'
+  'https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js',
+  'https://fonts.googleapis.com/css2?family=Archivo+Black&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap'
 ];
 
 // 安裝：預快取核心資源
