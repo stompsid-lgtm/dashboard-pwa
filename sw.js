@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dashboard-pwa-v2';
+const CACHE_NAME = 'dashboard-pwa-v2.1.0';
 const ASSETS = [
   './',
   './index.html',
