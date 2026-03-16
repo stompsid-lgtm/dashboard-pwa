@@ -735,10 +735,13 @@ a { color: var(--cyan); }
 
 <script>
 /* ===== 常數 ===== */
-const ENDPOINT = 'YOUR_APPS_SCRIPT_URL';
+const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSbP7zzCGChE60CQ2BQ-W-BcWGRSAFYpkonbkfFeCjTc8PA2/exec';
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
 const COLORS = { '06瓶': '#00E5FF', '10瓶': '#76FF03', '20瓶': '#FFD600', 'PLTgel': '#FF5722' };
-const MOCK_TARGET = { monthly: 300000, yearly: 3600000 };
+const MOCK_TARGET = {
+  monthly: [560000,560000,560000,560000,560000,560000,560000,560000,560000,560000,700000,700000],
+  yearly: 7000000
+};
 
 /* ===== Mock Data ===== */
 function generateMockData() {
@@ -795,6 +798,86 @@ function fmtNum(n) { return n.toLocaleString('zh-TW'); }
 function fmtMoney(n) {
   if (n >= 10000) return (n / 10000).toFixed(1) + '萬';
   return fmtNum(n);
+}
+
+/* 日期正規化：2025/1/1 或 2025/01/01 → 2025-01-01；已是 ISO 格式則不動 */
+function normalizeDate(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return dateStr;
+  // 已經是 YYYY-MM-DD 格式
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  // 處理 YYYY/M/D 或 YYYY/MM/DD
+  const m = dateStr.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  return dateStr;
+}
+
+/* 單價防禦：字串 "$13,333" → 數字 13333 */
+function normalizePrice(val) {
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/[$,\s]/g, '');
+    const n = Number(cleaned);
+    return isNaN(n) ? 0 : n;
+  }
+  return 0;
+}
+
+/* 載入後一次性正規化 rawData */
+function normalizeRawData(data) {
+  // 正規化 history 日期
+  if (data.history) {
+    for (const row of data.history) {
+      if (row.ReportDate) row.ReportDate = normalizeDate(row.ReportDate);
+      if (row.AdjDate) row.AdjDate = normalizeDate(row.AdjDate);
+    }
+  }
+  // 正規化 finance 日期
+  if (data.finance) {
+    for (const row of data.finance) {
+      if (row['日期']) row['日期'] = normalizeDate(row['日期']);
+      // 業績也做防禦
+      if (typeof row['業績'] === 'string') row['業績'] = normalizePrice(row['業績']);
+    }
+  }
+  // 正規化 price 單價
+  if (data.price) {
+    for (const row of data.price) {
+      for (const p of PRODUCTS) {
+        if (row[p] !== undefined) row[p] = normalizePrice(row[p]);
+      }
+    }
+  }
+}
+
+/* 計算指定月份範圍的目標合計（target.monthly 為 12 元素陣列）*/
+function getTargetForMonths(target, startMonth, endMonth) {
+  if (!target || !Array.isArray(target.monthly)) return 0;
+  // startMonth / endMonth 為 1-based（1=一月, 12=十二月）
+  let sum = 0;
+  for (let i = startMonth - 1; i <= endMonth - 1 && i < target.monthly.length; i++) {
+    sum += target.monthly[i];
+  }
+  return sum;
+}
+
+/* 根據篩選的日期範圍，算出對應的目標合計（只看 2026 年月份）*/
+function getTargetForRange(target, dateStart, dateEnd) {
+  if (!target || !Array.isArray(target.monthly)) return target ? target.yearly : 0;
+  // 取得範圍內涵蓋的 2026 年月份
+  const start = dateStart || '2026-01-01';
+  const end = dateEnd || '2026-12-31';
+  let sum = 0;
+  for (let m = 1; m <= 12; m++) {
+    const monthStr = `2026-${String(m).padStart(2,'0')}`;
+    // 月份的起始日（用 01）和結束日
+    const mStart = `${monthStr}-01`;
+    const mEnd = `${monthStr}-31`;
+    // 如果該月與篩選範圍有交集，就計入
+    if (mStart <= end && mEnd >= start) {
+      sum += target.monthly[m - 1];
+    }
+  }
+  return sum || target.yearly;
 }
 
 function filterData(raw, st) {
@@ -1025,10 +1108,10 @@ function renderHero(filtered) {
   const totalQty = filtered.reduce((s, r) => s + r.Qty, 0);
   document.getElementById('heroNumber').textContent = fmtNum(totalQty);
 
-  // Progress ring
+  // Progress ring — 用篩選期間對應的月目標合計
   const priceMap = buildPriceMap(rawData.price);
   const predRevenue = calcPredRevenue(filtered, priceMap);
-  const target = rawData.target ? rawData.target.yearly : MOCK_TARGET.yearly;
+  const target = getTargetForRange(rawData.target, state.dateRange.start, state.dateRange.end);
   const pct = target > 0 ? Math.min((predRevenue / target) * 100, 100) : 0;
   const circumference = 2 * Math.PI * 45;
   const offset = circumference - (pct / 100) * circumference;
@@ -1056,7 +1139,7 @@ function renderKPI(filtered) {
   const finFiltered = filterFinance(rawData, state);
   const officialRevenue = finFiltered.reduce((s, r) => s + r['業績'], 0);
   const diffPct = officialRevenue ? ((predRevenue - officialRevenue) / officialRevenue * 100).toFixed(1) : 'N/A';
-  const target = rawData.target ? rawData.target.yearly : MOCK_TARGET.yearly;
+  const target = getTargetForRange(rawData.target, state.dateRange.start, state.dateRange.end);
   const achievePct = target > 0 ? (predRevenue / target * 100).toFixed(1) : 0;
 
   // 本週
@@ -1348,13 +1431,20 @@ function renderYearPred() {
   const cumValues = []; let cum = 0;
   for (const v of values) { cum += v; cumValues.push(cum); }
 
-  const monthlyTarget = rawData.target ? rawData.target.monthly : MOCK_TARGET.monthly;
-  const cumTargetValues = months.map((_, i) => monthlyTarget * (i + 1));
+  const targetArr = rawData.target && Array.isArray(rawData.target.monthly)
+    ? rawData.target.monthly
+    : MOCK_TARGET.monthly;
+  // 月目標值（作為 markLine 參考）
+  const monthlyTargetValues = targetArr.slice(0, 12);
+  // 累積目標線
+  const cumTargetValues = [];
+  let cumTarget = 0;
+  for (let i = 0; i < 12; i++) { cumTarget += targetArr[i] || 0; cumTargetValues.push(cumTarget); }
 
   charts.yearPred.setOption({
     backgroundColor: 'transparent',
     grid: { left: 70, right: 70, top: 50, bottom: 30 },
-    legend: { data: ['月 Pred', '累積', '目標'], textStyle: { color: '#666' }, top: 4 },
+    legend: { data: ['月 Pred', '月目標', '累積', '累積目標'], textStyle: { color: '#666' }, top: 4 },
     xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11, color: '#666' }, axisLine: { lineStyle: { color: '#222' } } },
     yAxis: [
       { type: 'value', name: 'Pred', axisLabel: { formatter: v => fmtMoney(v), color: '#666' }, splitLine: { lineStyle: { color: '#1a1a1a' } } },
@@ -1362,8 +1452,9 @@ function renderYearPred() {
     ],
     series: [
       { name: '月 Pred', type: 'bar', data: values, itemStyle: { color: COLORS['06瓶'] } },
+      { name: '月目標', type: 'line', data: monthlyTargetValues, lineStyle: { color: '#666', width: 1, type: 'dotted' }, itemStyle: { color: '#666' }, symbol: 'none' },
       { name: '累積', type: 'line', yAxisIndex: 1, data: cumValues, smooth: true, lineStyle: { color: '#FF5722', width: 2 }, itemStyle: { color: '#FF5722' } },
-      { name: '目標', type: 'line', yAxisIndex: 1, data: cumTargetValues, lineStyle: { color: '#fff', width: 1, type: 'dashed' }, itemStyle: { color: '#fff' }, symbol: 'none' }
+      { name: '累積目標', type: 'line', yAxisIndex: 1, data: cumTargetValues, lineStyle: { color: '#fff', width: 1, type: 'dashed' }, itemStyle: { color: '#fff' }, symbol: 'none' }
     ],
     tooltip: {
       trigger: 'axis',
@@ -1395,7 +1486,10 @@ async function loadData() {
     const resp = await fetch(ENDPOINT);
     if (!resp.ok) throw new Error('fetch failed');
     rawData = await resp.json();
+    // 正規化日期、單價
+    normalizeRawData(rawData);
   } catch {
+    console.log('使用 mock data');
     rawData = generateMockData();
   }
   document.getElementById('updatedAt').textContent = '更新: ' + new Date(rawData.updatedAt).toLocaleString('zh-TW');
