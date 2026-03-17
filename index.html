@@ -811,7 +811,7 @@ a { color: var(--cyan); }
 
 <script>
 /* ===== 常數 ===== */
-const VERSION = 'v2.5.0';
+const VERSION = 'v2.5.1';
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSbP7zzCGChE60CQ2BQ-W-BcWGRSAFYpkonbkfFeCjTc8PA2/exec';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 分鐘自動刷新
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
@@ -873,12 +873,6 @@ function generateMockData() {
 }
 
 /* ===== Helpers ===== */
-function getAccountingMonth(adjDate) {
-  const d = new Date(adjDate);
-  if (d.getDate() >= 16) d.setMonth(d.getMonth() + 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
 function getISOWeekMonday(dateStr) {
   const d = new Date(dateStr);
   const day = d.getDay();
@@ -968,17 +962,6 @@ function normalizeRawData(data) {
   }
 }
 
-/* 計算指定月份範圍的目標合計（target.monthly 為 12 元素陣列）*/
-function getTargetForMonths(target, startMonth, endMonth) {
-  if (!target || !Array.isArray(target.monthly)) return 0;
-  // startMonth / endMonth 為 1-based（1=一月, 12=十二月）
-  let sum = 0;
-  for (let i = startMonth - 1; i <= endMonth - 1 && i < target.monthly.length; i++) {
-    sum += target.monthly[i];
-  }
-  return sum;
-}
-
 /* 根據篩選月份範圍（YYYY-MM），算出對應的目標合計（支援 2025/2026 跨年） */
 function getTargetForRange(target, monthStart, monthEnd) {
   const targetArr2026 = target && Array.isArray(target.monthly) ? target.monthly : MOCK_TARGET.monthly;
@@ -989,7 +972,7 @@ function getTargetForRange(target, monthStart, monthEnd) {
     if (m.startsWith('2026')) sum += targetArr2026[idx] || 0;
     else if (m.startsWith('2025')) sum += TARGET_2025.monthly[idx] || 0;
   }
-  return sum || (target ? target.yearly : 0);
+  return sum;
 }
 
 /* 篩選以月份為單位：state.dateRange 存 YYYY-MM */
@@ -1377,7 +1360,7 @@ function renderKPI(filtered) {
 
   // 本週
   const thisMonday = getISOWeekMonday(fmtDate(today));
-  const thisSunday = new Date(thisMonday);
+  const thisSunday = new Date(thisMonday + 'T00:00:00');
   thisSunday.setDate(thisSunday.getDate() + 6);
   const weekRecords = filtered.filter(r => r.AdjDate >= thisMonday && r.AdjDate <= fmtDate(thisSunday));
   const weekQty = weekRecords.reduce((s, r) => s + r.Qty, 0);
