@@ -811,7 +811,7 @@ a { color: var(--cyan); }
 
 <script>
 /* ===== 常數 ===== */
-const VERSION = 'v2.3.0';
+const VERSION = 'v2.4.0';
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSbP7zzCGChE60CQ2BQ-W-BcWGRSAFYpkonbkfFeCjTc8PA2/exec';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 分鐘自動刷新
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
@@ -901,6 +901,19 @@ function fmtMonth(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 function fmtNum(n) { return n.toLocaleString('zh-TW'); }
+/* 產生 start~end（YYYY-MM）之間所有月份陣列 */
+function monthsInRange(start, end) {
+  const arr = [];
+  if (!start || !end) return arr;
+  let [sy, sm] = start.split('-').map(Number);
+  const [ey, em] = end.split('-').map(Number);
+  while (sy < ey || (sy === ey && sm <= em)) {
+    arr.push(`${sy}-${String(sm).padStart(2, '0')}`);
+    sm++;
+    if (sm > 12) { sm = 1; sy++; }
+  }
+  return arr;
+}
 function fmtMoney(n) {
   if (n >= 10000) return (n / 10000).toFixed(1) + '萬';
   return fmtNum(n);
@@ -1708,36 +1721,46 @@ function renderTable(filtered) {
 function renderYearPred() {
   if (!charts.yearPred) return;
   const priceMap = buildPriceMap(rawData.price);
-  const records2026 = rawData.history.filter(r => r.AdjDate && r.AdjDate.startsWith('2026'));
+  const { start, end } = state.dateRange;
+  /* 產生日期範圍內所有月份 */
+  const months = monthsInRange(start, end);
+  if (!months.length) { charts.yearPred.setOption({ series: [] }, true); return; }
+  /* Pred 業績 by month（套用全域篩選） */
   const predMap = {};
-  for (const r of records2026) {
-    const m = r.AdjDate.slice(0, 7);
-    if (!m.startsWith('2026')) continue;
+  for (const r of rawData.history) {
+    const m = r.AdjDate ? r.AdjDate.slice(0, 7) : '';
+    if (!m || m < start || m > end) continue;
+    if (state.clients.length && !state.clients.includes(r.Client)) continue;
+    if (state.products.length && !state.products.includes(r.Product)) continue;
     if (!predMap[m]) predMap[m] = 0;
     const p = priceMap[r.Client];
     if (p && p[r.Product]) predMap[m] += p[r.Product] * r.Qty;
   }
-  /* 官方業績 by month (2026) */
+  /* 官方業績 by month（套用全域篩選） */
   const finMap = {};
   for (const f of rawData.finance) {
     const m = f['日期'] ? f['日期'].slice(0, 7) : '';
-    if (!m.startsWith('2026')) continue;
+    if (!m || m < start || m > end) continue;
+    if (state.clients.length && !state.clients.includes(f['客戶'])) continue;
     if (!finMap[m]) finMap[m] = 0;
     finMap[m] += f['業績'];
   }
-  const months = [];
-  for (let i = 1; i <= 12; i++) months.push(`2026-${String(i).padStart(2, '0')}`);
   const predValues = months.map(m => predMap[m] || 0);
   const finValues = months.map(m => finMap[m] || 0);
   const cumPred = []; let cp = 0;
   for (const v of predValues) { cp += v; cumPred.push(cp); }
   const cumFin = []; let cf = 0;
   for (const v of finValues) { cf += v; cumFin.push(cf); }
-
-  const targetArr = rawData.target && Array.isArray(rawData.target.monthly) ? rawData.target.monthly : MOCK_TARGET.monthly;
-  const monthlyTargetValues = targetArr.slice(0, 12);
+  /* 月目標（根據年月對應 2025/2026） */
+  const targetArr2026 = rawData.target && Array.isArray(rawData.target.monthly) ? rawData.target.monthly : MOCK_TARGET.monthly;
+  const monthlyTargetValues = months.map(m => {
+    const idx = parseInt(m.split('-')[1]) - 1;
+    if (m.startsWith('2026')) return targetArr2026[idx] || 0;
+    if (m.startsWith('2025')) return TARGET_2025.monthly[idx] || 0;
+    return 0;
+  });
   const cumTargetValues = []; let ct = 0;
-  for (let i = 0; i < 12; i++) { ct += targetArr[i] || 0; cumTargetValues.push(ct); }
+  for (const v of monthlyTargetValues) { ct += v; cumTargetValues.push(ct); }
 
   const dotStyle = { symbol: 'circle', symbolSize: 6 };
   charts.yearPred.setOption({
@@ -1765,18 +1788,22 @@ function renderYearPred() {
   }, true);
 }
 
-/* ===== 官方業績月趨勢（全年含 2025） ===== */
+/* ===== 官方業績月趨勢（套用全域日期篩選） ===== */
 function renderOfficialMonthly() {
   if (!charts.officialMonthly) return;
-  /* 所有月份的官方業績 */
+  const { start, end } = state.dateRange;
+  /* 產生日期範圍內所有月份 */
+  const allMonths = monthsInRange(start, end);
+  if (!allMonths.length) { charts.officialMonthly.setOption({ series: [] }, true); return; }
+  /* 官方業績 by month（套用全域篩選） */
   const finMap = {};
   for (const f of rawData.finance) {
     const m = f['日期'] ? f['日期'].slice(0, 7) : '';
-    if (!m) continue;
+    if (!m || m < start || m > end) continue;
+    if (state.clients.length && !state.clients.includes(f['客戶'])) continue;
     if (!finMap[m]) finMap[m] = 0;
     finMap[m] += f['業績'];
   }
-  const allMonths = Object.keys(finMap).sort();
   const finValues = allMonths.map(m => finMap[m] || 0);
   /* 月目標（2025 用 TARGET_2025，2026 用 rawData.target） */
   const targetArr2026 = rawData.target && Array.isArray(rawData.target.monthly) ? rawData.target.monthly : MOCK_TARGET.monthly;
