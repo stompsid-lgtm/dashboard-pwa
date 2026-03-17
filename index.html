@@ -813,7 +813,7 @@ const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSb
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 分鐘自動刷新
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
 const COLORS = { '06瓶': '#00E5FF', '10瓶': '#76FF03', '20瓶': '#FFD600', 'PLTgel': '#FF5722' };
-const TOOLTIP_STYLE = { ...TOOLTIP_STYLE };
+const TOOLTIP_STYLE = { backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' } };
 const MOCK_TARGET = {
   monthly: [560000,560000,560000,560000,560000,560000,560000,560000,560000,560000,700000,700000],
   yearly: 7000000
