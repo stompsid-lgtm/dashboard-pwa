@@ -974,7 +974,7 @@ function normalizeRawData(data) {
 }
 
 /* 根據篩選月份範圍（YYYY-MM），算出對應的目標合計（支援 2025/2026 跨年） */
-function getTargetForRange(target, monthStart, monthEnd) {
+function getTargetForRange(monthStart, monthEnd) {
   const months = monthsInRange(monthStart || '2026-01', monthEnd || '2026-12');
   let sum = 0;
   for (const m of months) sum += getMonthTarget(m);
@@ -1287,7 +1287,7 @@ function renderHero(filtered) {
   // Progress ring — 用篩選期間對應的月目標合計
   const priceMap = buildPriceMap(rawData.price);
   const predRevenue = calcPredRevenue(filtered, priceMap);
-  const target = getTargetForRange(rawData.target, state.dateRange.start, state.dateRange.end);
+  const target = getTargetForRange(state.dateRange.start, state.dateRange.end);
   const pct = target > 0 ? (predRevenue / target) * 100 : 0;
   const ringPct = Math.min(pct, 100); /* 圓圈最多畫滿，但數字不 cap */
   const circumference = 2 * Math.PI * 45;
@@ -1355,7 +1355,7 @@ function renderKPI(filtered) {
   const finFiltered = filterFinance(rawData, state);
   const officialRevenue = finFiltered.reduce((s, r) => s + r['業績'], 0);
   const diffPct = officialRevenue ? ((predRevenue - officialRevenue) / officialRevenue * 100).toFixed(1) : 'N/A';
-  const target = getTargetForRange(rawData.target, state.dateRange.start, state.dateRange.end);
+  const target = getTargetForRange(state.dateRange.start, state.dateRange.end);
   const achievePct = target > 0 ? (predRevenue / target * 100).toFixed(1) : 0;
 
   // 本週
