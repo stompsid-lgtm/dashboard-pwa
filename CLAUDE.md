@@ -60,7 +60,6 @@ GLOBAL-STATE:
 <debt>
 echarts-cdn: 離線時圖表無法渲染
 sw-version: cache 版本 dashboard-pwa-v2，更新需 bump
-cf-access: CF Access 認證尚未設定（需 Zero Trust dashboard）
 finance-feb2026: 財務實際業績 2026/2 月資料待補
 </debt>
 
@@ -70,8 +69,8 @@ Spec.md → 規格文件 v2（Brutalist Signal 設計語言 + 完整佈局定義
 Log.md → 開發日誌
 
 DEPLOY:
-  url: https://dashboard-pwa.stompsid.workers.dev/
-  platform: CF Workers（GitHub 整合，push main 自動部署）
+  url: https://dashboard-pwa-541.pages.dev/
+  platform: CF Pages（wrangler pages deploy，push main 自動部署）
   gas: DashboardAPI.gs（bound to 🚛每週銷存表, Web App deployed）
 
 COMMANDS:
