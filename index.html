@@ -811,7 +811,7 @@ a { color: var(--cyan); }
 
 <script>
 /* ===== 常數 ===== */
-const VERSION = 'v2.4.0';
+const VERSION = 'v2.4.1';
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSbP7zzCGChE60CQ2BQ-W-BcWGRSAFYpkonbkfFeCjTc8PA2/exec';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 分鐘自動刷新
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
@@ -834,7 +834,7 @@ function shortName(name) {
 
 /* 金額顯示 k 單位 */
 function fmtK(n) {
-  if (n >= 1000) return Math.round(n / 1000) + 'k';
+  if (n >= 1000) return fmtNum(Math.round(n / 1000)) + 'k';
   return fmtNum(n);
 }
 
@@ -1140,7 +1140,7 @@ function renderChips(containerId, items, selected, field) {
   for (const item of items) {
     const chip = document.createElement('span');
     chip.className = 'chip' + (selected.includes(item) ? ' active' : '');
-    chip.textContent = item;
+    chip.textContent = field === 'clients' ? shortName(item) : item;
     chip.addEventListener('click', () => {
       const idx = state[field].indexOf(item);
       if (idx >= 0) state[field].splice(idx, 1);
