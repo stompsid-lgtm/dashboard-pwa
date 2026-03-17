@@ -811,11 +811,12 @@ a { color: var(--cyan); }
 
 <script>
 /* ===== 常數 ===== */
-const VERSION = 'v2.5.1';
+const VERSION = 'v2.5.2';
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSbP7zzCGChE60CQ2BQ-W-BcWGRSAFYpkonbkfFeCjTc8PA2/exec';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 分鐘自動刷新
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
 const COLORS = { '06瓶': '#00E5FF', '10瓶': '#76FF03', '20瓶': '#FFD600', 'PLTgel': '#FF5722' };
+const TOOLTIP_STYLE = { ...TOOLTIP_STYLE };
 const MOCK_TARGET = {
   monthly: [560000,560000,560000,560000,560000,560000,560000,560000,560000,560000,700000,700000],
   yearly: 7000000
@@ -908,6 +909,16 @@ function monthsInRange(start, end) {
   }
   return arr;
 }
+/* 取得某月的目標金額（依年份選用 2025/2026 目標陣列） */
+function getMonthTarget(monthStr) {
+  const idx = parseInt(monthStr.split('-')[1]) - 1;
+  if (monthStr.startsWith('2026')) {
+    const arr = rawData && rawData.target && Array.isArray(rawData.target.monthly) ? rawData.target.monthly : MOCK_TARGET.monthly;
+    return arr[idx] || 0;
+  }
+  if (monthStr.startsWith('2025')) return TARGET_2025.monthly[idx] || 0;
+  return 0;
+}
 function fmtMoney(n) {
   if (n >= 10000) return (n / 10000).toFixed(1) + '萬';
   return fmtNum(n);
@@ -964,14 +975,9 @@ function normalizeRawData(data) {
 
 /* 根據篩選月份範圍（YYYY-MM），算出對應的目標合計（支援 2025/2026 跨年） */
 function getTargetForRange(target, monthStart, monthEnd) {
-  const targetArr2026 = target && Array.isArray(target.monthly) ? target.monthly : MOCK_TARGET.monthly;
   const months = monthsInRange(monthStart || '2026-01', monthEnd || '2026-12');
   let sum = 0;
-  for (const m of months) {
-    const idx = parseInt(m.split('-')[1]) - 1;
-    if (m.startsWith('2026')) sum += targetArr2026[idx] || 0;
-    else if (m.startsWith('2025')) sum += TARGET_2025.monthly[idx] || 0;
-  }
+  for (const m of months) sum += getMonthTarget(m);
   return sum;
 }
 
@@ -1312,17 +1318,11 @@ function renderMonthlyRings() {
     d.setMonth(d.getMonth() - i);
     months.push(fmtMonth(d));
   }
-  const target = rawData.target;
-  const monthlyTarget = target && Array.isArray(target.monthly) ? target.monthly : MOCK_TARGET.monthly;
-
   const pLabels = ['P3M 官方業績', 'P2M 官方業績', 'P1M 官方業績'];
   const cards = months.map((m, idx) => {
     const monthFinance = rawData.finance.filter(f => f['日期'] && f['日期'].slice(0, 7) === m);
     const revenue = monthFinance.reduce((s, r) => s + r['業績'], 0);
-    const monthIdx = parseInt(m.split('-')[1]) - 1;
-    /* 2025 用 TARGET_2025，2026 用 rawData.target */
-    const tgt = m.startsWith('2026') ? (monthlyTarget[monthIdx] || 0)
-              : m.startsWith('2025') ? (TARGET_2025.monthly[monthIdx] || 0) : 0;
+    const tgt = getMonthTarget(m);
     const pct = tgt > 0 ? (revenue / tgt) * 100 : (revenue > 0 ? 100 : 0);
     const ringPct = Math.min(pct, 100);
     const circumference = 2 * Math.PI * 32;
@@ -1454,7 +1454,7 @@ function renderWeeklyChart(filtered) {
   }
   const dates = Object.keys(dateMap).sort();
   const isMobile = window.innerWidth < 768;
-  const tooltipStyle = { backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' } };
+  const tooltipStyle = TOOLTIP_STYLE;
   const axLine = { lineStyle: { color: '#222' } };
   const axLabel = { color: '#666' };
   const splitStyle = { lineStyle: { color: '#1a1a1a' } };
@@ -1515,7 +1515,7 @@ function renderMonthlyChart(filtered) {
   }
   const months = Object.keys(monthMap).sort();
   const isMobile = window.innerWidth < 768;
-  const tooltipStyle = { backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' } };
+  const tooltipStyle = TOOLTIP_STYLE;
   const defaultVisible = 3;
   const zoomStart = months.length > defaultVisible ? ((months.length - defaultVisible) / months.length) * 100 : 0;
 
@@ -1582,7 +1582,7 @@ function renderProductDonut(filtered) {
       label: { color: '#999', fontSize: 12, formatter: '{b}\n{d}%' },
       emphasis: { scaleSize: 6 }
     }],
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' } }
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', ...TOOLTIP_STYLE }
   }, true);
 }
 
@@ -1732,14 +1732,8 @@ function renderYearPred() {
   for (const v of predValues) { cp += v; cumPred.push(cp); }
   const cumFin = []; let cf = 0;
   for (const v of finValues) { cf += v; cumFin.push(cf); }
-  /* 月目標（根據年月對應 2025/2026） */
-  const targetArr2026 = rawData.target && Array.isArray(rawData.target.monthly) ? rawData.target.monthly : MOCK_TARGET.monthly;
-  const monthlyTargetValues = months.map(m => {
-    const idx = parseInt(m.split('-')[1]) - 1;
-    if (m.startsWith('2026')) return targetArr2026[idx] || 0;
-    if (m.startsWith('2025')) return TARGET_2025.monthly[idx] || 0;
-    return 0;
-  });
+  /* 月目標 */
+  const monthlyTargetValues = months.map(m => getMonthTarget(m));
   const cumTargetValues = []; let ct = 0;
   for (const v of monthlyTargetValues) { ct += v; cumTargetValues.push(ct); }
 
@@ -1764,7 +1758,7 @@ function renderYearPred() {
     tooltip: {
       trigger: 'axis',
       formatter: params => params.map(p => `${p.seriesName}: ${fmtK(p.value)}`).join('<br>'),
-      backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' }
+      ...TOOLTIP_STYLE
     }
   }, true);
 }
@@ -1786,14 +1780,8 @@ function renderOfficialMonthly() {
     finMap[m] += f['業績'];
   }
   const finValues = allMonths.map(m => finMap[m] || 0);
-  /* 月目標（2025 用 TARGET_2025，2026 用 rawData.target） */
-  const targetArr2026 = rawData.target && Array.isArray(rawData.target.monthly) ? rawData.target.monthly : MOCK_TARGET.monthly;
-  const targetValues = allMonths.map(m => {
-    const idx = parseInt(m.split('-')[1]) - 1;
-    if (m.startsWith('2026')) return targetArr2026[idx] || 0;
-    if (m.startsWith('2025')) return TARGET_2025.monthly[idx] || 0;
-    return 0;
-  });
+  /* 月目標 */
+  const targetValues = allMonths.map(m => getMonthTarget(m));
 
   charts.officialMonthly.setOption({
     backgroundColor: 'transparent',
@@ -1808,7 +1796,7 @@ function renderOfficialMonthly() {
     tooltip: {
       trigger: 'axis',
       formatter: params => params.map(p => `${p.seriesName}: ${fmtK(p.value)}`).join('<br>'),
-      backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' }
+      ...TOOLTIP_STYLE
     }
   }, true);
 }
