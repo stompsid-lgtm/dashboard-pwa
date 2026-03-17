@@ -811,7 +811,7 @@ a { color: var(--cyan); }
 
 <script>
 /* ===== 常數 ===== */
-const VERSION = 'v2.4.1';
+const VERSION = 'v2.5.0';
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSbP7zzCGChE60CQ2BQ-W-BcWGRSAFYpkonbkfFeCjTc8PA2/exec';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 分鐘自動刷新
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
@@ -979,19 +979,17 @@ function getTargetForMonths(target, startMonth, endMonth) {
   return sum;
 }
 
-/* 根據篩選月份範圍（YYYY-MM），算出對應的目標合計（只看 2026 年月份）*/
+/* 根據篩選月份範圍（YYYY-MM），算出對應的目標合計（支援 2025/2026 跨年） */
 function getTargetForRange(target, monthStart, monthEnd) {
-  if (!target || !Array.isArray(target.monthly)) return target ? target.yearly : 0;
-  const start = monthStart || '2026-01';
-  const end = monthEnd || '2026-12';
+  const targetArr2026 = target && Array.isArray(target.monthly) ? target.monthly : MOCK_TARGET.monthly;
+  const months = monthsInRange(monthStart || '2026-01', monthEnd || '2026-12');
   let sum = 0;
-  for (let m = 1; m <= 12; m++) {
-    const monthStr = `2026-${String(m).padStart(2,'0')}`;
-    if (monthStr >= start && monthStr <= end) {
-      sum += target.monthly[m - 1];
-    }
+  for (const m of months) {
+    const idx = parseInt(m.split('-')[1]) - 1;
+    if (m.startsWith('2026')) sum += targetArr2026[idx] || 0;
+    else if (m.startsWith('2025')) sum += TARGET_2025.monthly[idx] || 0;
   }
-  return sum || target.yearly;
+  return sum || (target ? target.yearly : 0);
 }
 
 /* 篩選以月份為單位：state.dateRange 存 YYYY-MM */
@@ -1686,9 +1684,9 @@ function renderTable(filtered) {
   html += '</tr></thead><tbody>';
 
   for (const { client, data, off, unitPrice, share } of rows) {
-    html += `<tr><td>${shortName(client)}</td>`;
-    for (const p of PRODUCTS) html += `<td>${fmtNum(data.products[p] || 0)}</td>`;
-    html += `<td>${fmtNum(data.qty)}</td><td>${fmtK(data.pred)}</td><td>${fmtK(off)}</td><td>${fmtK(unitPrice)}</td><td>${share.toFixed(1)}%</td></tr>`;
+    html += `<tr><td data-v="${shortName(client)}">${shortName(client)}</td>`;
+    for (const p of PRODUCTS) { const v = data.products[p] || 0; html += `<td data-v="${v}">${fmtNum(v)}</td>`; }
+    html += `<td data-v="${data.qty}">${fmtNum(data.qty)}</td><td data-v="${data.pred}">${fmtK(data.pred)}</td><td data-v="${off}">${fmtK(off)}</td><td data-v="${unitPrice}">${fmtK(unitPrice)}</td><td data-v="${share}">${share.toFixed(1)}%</td></tr>`;
   }
   html += '</tbody></table>';
   wrap.innerHTML = html;
@@ -1704,10 +1702,10 @@ function renderTable(filtered) {
         const tbody = table.querySelector('tbody');
         const trs = Array.from(tbody.querySelectorAll('tr'));
         trs.sort((a, b) => {
-          const av = a.children[col]?.textContent || '';
-          const bv = b.children[col]?.textContent || '';
-          const an = parseFloat(av.replace(/[^0-9.\-]/g, '')) || 0;
-          const bn = parseFloat(bv.replace(/[^0-9.\-]/g, '')) || 0;
+          const av = a.children[col]?.dataset.v || '';
+          const bv = b.children[col]?.dataset.v || '';
+          const an = parseFloat(av) || 0;
+          const bn = parseFloat(bv) || 0;
           if (col === 0) return sortDir[col] ? av.localeCompare(bv, 'zh-TW') : bv.localeCompare(av, 'zh-TW');
           return sortDir[col] ? an - bn : bn - an;
         });
@@ -1873,6 +1871,11 @@ async function loadData() {
 
 /* ===== Resize ===== */
 window.addEventListener('resize', () => {
+  /* lazy init：手機→桌機時補建缺失的 chart instance */
+  const yearEl = document.getElementById('chartYearPred');
+  if (yearEl && !charts.yearPred && yearEl.offsetParent !== null) charts.yearPred = echarts.init(yearEl);
+  const offMonthEl = document.getElementById('chartOfficialMonthly');
+  if (offMonthEl && !charts.officialMonthly && offMonthEl.offsetParent !== null) charts.officialMonthly = echarts.init(offMonthEl);
   Object.values(charts).forEach(c => c && c.resize());
   render();
 });
@@ -1890,6 +1893,11 @@ setInterval(async () => {
     if (!resp.ok) return;
     rawData = await resp.json();
     normalizeRawData(rawData);
+    /* 重建篩選選項，保留仍有效的選取 */
+    const newClients = [...new Set(rawData.history.map(r => r.Client))].sort();
+    state.clients = state.clients.filter(c => newClients.includes(c));
+    allClients = newClients;
+    syncChips('clients');
     document.getElementById('updatedAt').textContent = VERSION + ' · 更新: ' + new Date(rawData.updatedAt).toLocaleString('zh-TW');
     render();
   } catch { /* 靜默失敗，等下次刷新 */ }
