@@ -24,8 +24,8 @@
   --green: #76FF03;
   --amber: #FFD600;
   --text: #f0f0f0;
-  --text-dim: #666;
-  --text-muted: #444;
+  --text-dim: #aaa;
+  --text-muted: #777;
   --border: #222;
   --radius: 4px;
   --shadow: 0 4px 12px rgba(0,0,0,.4);
@@ -326,6 +326,8 @@ a { color: var(--cyan); }
   overflow: hidden;
   background: var(--bg-card);
   border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
 }
 .kpi-card.signal {
   background: var(--signal);
@@ -333,19 +335,22 @@ a { color: var(--cyan); }
   border-color: var(--signal);
 }
 .kpi-card.signal .kpi-card-label { color: rgba(0,0,0,0.5); }
-.kpi-card-value {
-  font-family: 'Archivo Black', sans-serif;
-  font-size: var(--h1);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  margin-bottom: 4px;
-}
 .kpi-card-label {
   font-size: var(--caption);
   color: var(--text-dim);
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.12em;
+  margin-bottom: auto;
+}
+.kpi-card-value {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: var(--h1);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 .kpi-card-delta {
   display: inline-block;
@@ -443,12 +448,12 @@ a { color: var(--cyan); }
 }
 
 /* ===== 客戶排行（卡片列表） ===== */
-.rank-list { list-style: none; display: flex; flex-direction: column; gap: clamp(6px, 1vw, 12px); max-height: clamp(300px, 38vw, 500px); overflow-y: auto; }
+.rank-list { list-style: none; display: flex; flex-direction: column; gap: clamp(4px, 0.6vw, 8px); max-height: clamp(300px, 38vw, 500px); overflow: hidden; }
 .rank-item {
   display: flex;
   align-items: center;
-  gap: clamp(8px, 1vw, 14px);
-  padding: clamp(10px, 1.5vw, 16px);
+  gap: clamp(6px, 0.8vw, 10px);
+  padding: clamp(6px, 1vw, 10px);
   background: var(--bg-elevated);
   border-radius: var(--radius);
   border-left: 3px solid var(--signal);
@@ -651,6 +656,7 @@ a { color: var(--cyan); }
       <span class="date-range-sep">~</span>
       <input type="month" id="dateEnd">
     </div>
+    <button class="btn-reset" id="navReset" style="display:none;">重置</button>
   </div>
 </nav>
 
@@ -767,8 +773,34 @@ a { color: var(--cyan); }
   </div>
 </section>
 
-<!-- ===== 客戶業績明細 ===== -->
+<!-- ===== 業績月趨勢 ===== -->
 <section class="full-section desktop-only">
+  <div class="chart-block reveal">
+    <div class="chart-block-header">
+      <div>
+        <div class="chart-block-title">業績月趨勢</div>
+        <div class="chart-block-subtitle">Pred + 官方 + 目標線</div>
+      </div>
+    </div>
+    <div class="chart-area-tall" id="chartYearPred"></div>
+  </div>
+</section>
+
+<!-- ===== 官方業績月趨勢 ===== -->
+<section class="full-section desktop-only">
+  <div class="chart-block reveal">
+    <div class="chart-block-header">
+      <div>
+        <div class="chart-block-title">官方業績月趨勢</div>
+        <div class="chart-block-subtitle">各月官方業績 vs 月目標</div>
+      </div>
+    </div>
+    <div class="chart-area-tall" id="chartOfficialMonthly"></div>
+  </div>
+</section>
+
+<!-- ===== 客戶業績明細（永遠最下面） ===== -->
+<section class="full-section desktop-only" style="padding-bottom:clamp(24px,4vw,48px);">
   <div class="chart-block reveal">
     <div class="chart-block-header">
       <div class="chart-block-title">客戶業績明細</div>
@@ -777,22 +809,9 @@ a { color: var(--cyan); }
   </div>
 </section>
 
-<!-- ===== 2026 年度趨勢 ===== -->
-<section class="full-section desktop-only" style="padding-bottom:clamp(24px,4vw,48px);">
-  <div class="chart-block reveal">
-    <div class="chart-block-header">
-      <div>
-        <div class="chart-block-title">2026 Pred 業績月趨勢</div>
-        <div class="chart-block-subtitle">月 Pred + 累積 + 目標線</div>
-      </div>
-    </div>
-    <div class="chart-area-tall" id="chartYearPred"></div>
-  </div>
-</section>
-
 <script>
 /* ===== 常數 ===== */
-const VERSION = 'v2.2.0';
+const VERSION = 'v2.3.0';
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSbP7zzCGChE60CQ2BQ-W-BcWGRSAFYpkonbkfFeCjTc8PA2/exec';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 分鐘自動刷新
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
@@ -801,6 +820,23 @@ const MOCK_TARGET = {
   monthly: [560000,560000,560000,560000,560000,560000,560000,560000,560000,560000,700000,700000],
   yearly: 7000000
 };
+/* 2025 季目標（除3得到月目標）：Q1 1,260,000 | Q2 1,500,000 | Q3 1,620,000 | Q4 1,620,000 */
+const TARGET_2025 = {
+  monthly: [420000,420000,420000,500000,500000,500000,540000,540000,540000,540000,540000,540000],
+  yearly: 6000000
+};
+
+/* 客戶名稱精簡：隱藏 -龍群、- 龍群、- 龍群. 等後綴 */
+function shortName(name) {
+  if (!name) return '';
+  return name.replace(/[-\s]*龍群\.?$/,'').replace(/[-\s]*$/,'').trim();
+}
+
+/* 金額顯示 k 單位 */
+function fmtK(n) {
+  if (n >= 1000) return Math.round(n / 1000) + 'k';
+  return fmtNum(n);
+}
 
 /* ===== Mock Data ===== */
 function generateMockData() {
@@ -1064,6 +1100,7 @@ function initFilters() {
 
   // 重置按鈕
   document.getElementById('btnReset').addEventListener('click', resetFilters);
+  document.getElementById('navReset').addEventListener('click', resetFilters);
 
   // Bottom sheet
   const trigger = document.getElementById('mobileFilterTrigger');
@@ -1251,9 +1288,10 @@ function renderHero(filtered) {
   const priceMap = buildPriceMap(rawData.price);
   const predRevenue = calcPredRevenue(filtered, priceMap);
   const target = getTargetForRange(rawData.target, state.dateRange.start, state.dateRange.end);
-  const pct = target > 0 ? Math.min((predRevenue / target) * 100, 100) : 0;
+  const pct = target > 0 ? (predRevenue / target) * 100 : 0;
+  const ringPct = Math.min(pct, 100); /* 圓圈最多畫滿，但數字不 cap */
   const circumference = 2 * Math.PI * 45;
-  const offset = circumference - (pct / 100) * circumference;
+  const offset = circumference - (ringPct / 100) * circumference;
 
   const ringEl = document.getElementById('heroRing');
   ringEl.innerHTML = `
@@ -1283,14 +1321,18 @@ function renderMonthlyRings() {
   const target = rawData.target;
   const monthlyTarget = target && Array.isArray(target.monthly) ? target.monthly : MOCK_TARGET.monthly;
 
-  const cards = months.map(m => {
+  const pLabels = ['P3M 官方業績', 'P2M 官方業績', 'P1M 官方業績'];
+  const cards = months.map((m, idx) => {
     const monthFinance = rawData.finance.filter(f => f['日期'] && f['日期'].slice(0, 7) === m);
     const revenue = monthFinance.reduce((s, r) => s + r['業績'], 0);
     const monthIdx = parseInt(m.split('-')[1]) - 1;
-    const tgt = m.startsWith('2026') ? (monthlyTarget[monthIdx] || 0) : 0;
-    const pct = tgt > 0 ? Math.min((revenue / tgt) * 100, 100) : (revenue > 0 ? 100 : 0);
+    /* 2025 用 TARGET_2025，2026 用 rawData.target */
+    const tgt = m.startsWith('2026') ? (monthlyTarget[monthIdx] || 0)
+              : m.startsWith('2025') ? (TARGET_2025.monthly[monthIdx] || 0) : 0;
+    const pct = tgt > 0 ? (revenue / tgt) * 100 : (revenue > 0 ? 100 : 0);
+    const ringPct = Math.min(pct, 100);
     const circumference = 2 * Math.PI * 32;
-    const offset = circumference - (pct / 100) * circumference;
+    const offset = circumference - (ringPct / 100) * circumference;
     const ringColor = pct >= 100 ? 'var(--green)' : 'var(--signal)';
     return `
       <div class="month-ring-card reveal">
@@ -1302,7 +1344,7 @@ function renderMonthlyRings() {
           <text text-anchor="middle" dominant-baseline="central" x="36" y="36"
             fill="var(--text)" font-family="Archivo Black,sans-serif" font-size="11">${tgt > 0 ? pct.toFixed(0) + '%' : '—'}</text>
         </svg>
-        <div class="month-ring-label">${m}</div>
+        <div class="month-ring-label">${pLabels[idx]}<br>${m}</div>
         <div class="month-ring-value">${fmtMoney(revenue)}</div>
       </div>
     `;
@@ -1336,18 +1378,18 @@ function renderKPI(filtered) {
 
   if (isMobile) {
     grid.innerHTML = `
-      <div class="kpi-card signal reveal"><div class="kpi-card-value">${fmtNum(weekQty)}</div><div class="kpi-card-label">本週收檢</div></div>
-      <div class="kpi-card reveal" style="border-left:3px solid var(--cyan)"><div class="kpi-card-value">${fmtNum(monthQty)}</div><div class="kpi-card-label">本月收檢</div></div>
-      <div class="kpi-card reveal" style="border-left:3px solid var(--green)"><div class="kpi-card-value">${fmtMoney(calcPredRevenue(monthRecords, priceMap))}</div><div class="kpi-card-label">本月 Pred</div></div>
+      <div class="kpi-card signal reveal"><div class="kpi-card-label">本週收檢</div><div class="kpi-card-value">${fmtNum(weekQty)}</div></div>
+      <div class="kpi-card reveal" style="border-left:3px solid var(--cyan)"><div class="kpi-card-label">本月收檢</div><div class="kpi-card-value">${fmtNum(monthQty)}</div></div>
+      <div class="kpi-card reveal" style="border-left:3px solid var(--green)"><div class="kpi-card-label">本月 Pred</div><div class="kpi-card-value">${fmtK(calcPredRevenue(monthRecords, priceMap))}</div></div>
     `;
   } else {
     const deltaClass = parseFloat(diffPct) >= 0 ? 'delta-up' : 'delta-down';
     const latestFinDate = finFiltered.length > 0 ? finFiltered.reduce((max, r) => (r['日期'] > max ? r['日期'] : max), '').slice(0, 7) : '—';
     grid.innerHTML = `
-      <div class="kpi-card signal reveal"><div class="kpi-card-value">${fmtMoney(predRevenue)}</div><div class="kpi-card-label">Pred 業績</div></div>
-      <div class="kpi-card reveal"><div class="kpi-card-delta ${deltaClass}">vs Pred ${parseFloat(diffPct) > 0 ? '+' : ''}${diffPct}%</div><div class="kpi-card-value">${fmtMoney(officialRevenue)}</div><div class="kpi-card-label">官方業績<br><span style="font-size:var(--micro);opacity:0.6">截至 ${latestFinDate}</span></div></div>
-      <div class="kpi-card reveal"><div class="kpi-card-value">${fmtNum(monthQty)}</div><div class="kpi-card-label">本月收檢<br><span style="font-size:var(--micro);opacity:0.6">${thisMonthStr}</span></div></div>
-      <div class="kpi-card reveal"><div class="kpi-card-value">${achievePct}%</div><div class="kpi-card-label">目標達成率</div><div class="kpi-progress"><div class="kpi-progress-fill" style="width:${Math.min(achievePct, 100)}%"></div></div></div>
+      <div class="kpi-card signal reveal"><div class="kpi-card-label">Pred 業績</div><div class="kpi-card-value">${fmtK(predRevenue)}</div></div>
+      <div class="kpi-card reveal"><div class="kpi-card-label">官方業績 <span class="kpi-card-delta ${deltaClass}">vs Pred ${parseFloat(diffPct) > 0 ? '+' : ''}${diffPct}%</span><br><span style="font-size:var(--micro);opacity:0.6">截至 ${latestFinDate}</span></div><div class="kpi-card-value">${fmtK(officialRevenue)}</div></div>
+      <div class="kpi-card reveal"><div class="kpi-card-label">本月收檢<br><span style="font-size:var(--micro);opacity:0.6">${thisMonthStr}</span></div><div class="kpi-card-value">${fmtNum(monthQty)}</div></div>
+      <div class="kpi-card reveal"><div class="kpi-card-label">目標達成率<br><span style="font-size:var(--micro);opacity:0.6">目標 ${fmtK(target)}</span></div><div class="kpi-card-value">${achievePct}%</div><div class="kpi-progress"><div class="kpi-progress-fill" style="width:${Math.min(achievePct, 100)}%"></div></div></div>
     `;
   }
 }
@@ -1359,6 +1401,8 @@ function initCharts() {
   charts.product = echarts.init(document.getElementById('chartProduct'));
   const yearEl = document.getElementById('chartYearPred');
   if (yearEl && yearEl.offsetParent !== null) charts.yearPred = echarts.init(yearEl);
+  const offMonthEl = document.getElementById('chartOfficialMonthly');
+  if (offMonthEl && offMonthEl.offsetParent !== null) charts.officialMonthly = echarts.init(offMonthEl);
 
   const ro = new ResizeObserver(() => {
     Object.values(charts).forEach(c => c && c.resize());
@@ -1572,8 +1616,8 @@ function renderClientRank(filtered) {
   list.innerHTML = merged.map((d, i) => `
     <li class="rank-item${state.clients.includes(d.name) ? ' selected' : ''}" data-client="${d.name}">
       <span class="rank-pos">${String(i + 1).padStart(2, '0')}</span>
-      <div class="rank-info"><div class="rank-name">${d.name}</div><div class="rank-sub">${fmtNum(d.qty)} 瓶</div></div>
-      <span class="rank-value">${fmtMoney(d.revenue)}</span>
+      <div class="rank-info"><div class="rank-name">${shortName(d.name)}</div><div class="rank-sub">${fmtNum(d.qty)} 瓶</div></div>
+      <span class="rank-value">${fmtK(d.revenue)}</span>
     </li>
   `).join('');
 
@@ -1614,70 +1658,148 @@ function renderTable(filtered) {
   /* 計算全部客戶 Pred 合計（用於佔比） */
   const totalPred = Object.values(clientData).reduce((s, d) => s + d.pred, 0);
 
-  let html = '<table class="data-table"><thead><tr><th>客戶</th>';
-  for (const p of PRODUCTS) html += `<th>${p}</th>`;
-  html += '<th>總量</th><th>Pred</th><th>官方</th><th>客單價</th><th>佔比%</th></tr></thead><tbody>';
-
-  const sortedClients = Object.entries(clientData).sort((a, b) => b[1].pred - a[1].pred);
-  for (const [client, data] of sortedClients) {
-    html += `<tr><td>${client}</td>`;
-    for (const p of PRODUCTS) html += `<td>${fmtNum(data.products[p] || 0)}</td>`;
+  /* 組裝 rows 資料（支援排序） */
+  const rows = Object.entries(clientData).map(([client, data]) => {
     const off = officialByClient[client] || 0;
     const unitPrice = data.qty > 0 ? Math.round(off / data.qty) : 0;
-    const share = totalPred > 0 ? (data.pred / totalPred * 100).toFixed(1) : '0';
-    html += `<td>${fmtNum(data.qty)}</td><td>${fmtMoney(data.pred)}</td><td>${fmtMoney(off)}</td><td>${fmtMoney(unitPrice)}</td><td>${share}%</td></tr>`;
+    const share = totalPred > 0 ? (data.pred / totalPred * 100) : 0;
+    return { client, data, off, unitPrice, share };
+  });
+  rows.sort((a, b) => b.data.pred - a.data.pred);
+
+  const cols = ['客戶', ...PRODUCTS, '總量', 'Pred', '官方', '客單價', '佔比%'];
+  let html = '<table class="data-table" id="detailTable"><thead><tr>';
+  cols.forEach((c, i) => { html += `<th style="cursor:pointer" data-col="${i}">${c} ↕</th>`; });
+  html += '</tr></thead><tbody>';
+
+  for (const { client, data, off, unitPrice, share } of rows) {
+    html += `<tr><td>${shortName(client)}</td>`;
+    for (const p of PRODUCTS) html += `<td>${fmtNum(data.products[p] || 0)}</td>`;
+    html += `<td>${fmtNum(data.qty)}</td><td>${fmtK(data.pred)}</td><td>${fmtK(off)}</td><td>${fmtK(unitPrice)}</td><td>${share.toFixed(1)}%</td></tr>`;
   }
   html += '</tbody></table>';
   wrap.innerHTML = html;
+
+  /* 欄位排序功能 */
+  const table = document.getElementById('detailTable');
+  if (table) {
+    let sortDir = {};
+    table.querySelectorAll('th').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = parseInt(th.dataset.col);
+        sortDir[col] = !(sortDir[col] || false);
+        const tbody = table.querySelector('tbody');
+        const trs = Array.from(tbody.querySelectorAll('tr'));
+        trs.sort((a, b) => {
+          const av = a.children[col]?.textContent || '';
+          const bv = b.children[col]?.textContent || '';
+          const an = parseFloat(av.replace(/[^0-9.\-]/g, '')) || 0;
+          const bn = parseFloat(bv.replace(/[^0-9.\-]/g, '')) || 0;
+          if (col === 0) return sortDir[col] ? av.localeCompare(bv, 'zh-TW') : bv.localeCompare(av, 'zh-TW');
+          return sortDir[col] ? an - bn : bn - an;
+        });
+        trs.forEach(tr => tbody.appendChild(tr));
+      });
+    });
+  }
 }
 
-/* ===== 2026 年度趨勢 ===== */
+/* ===== 業績月趨勢（Pred + 官方 + 目標） ===== */
 function renderYearPred() {
   if (!charts.yearPred) return;
   const priceMap = buildPriceMap(rawData.price);
   const records2026 = rawData.history.filter(r => r.AdjDate && r.AdjDate.startsWith('2026'));
-  const monthMap = {};
+  const predMap = {};
   for (const r of records2026) {
-    const m = r.AdjDate.slice(0, 7); /* AdjDate 已調整，直接取月份 */
+    const m = r.AdjDate.slice(0, 7);
     if (!m.startsWith('2026')) continue;
-    if (!monthMap[m]) monthMap[m] = 0;
+    if (!predMap[m]) predMap[m] = 0;
     const p = priceMap[r.Client];
-    if (p && p[r.Product]) monthMap[m] += p[r.Product] * r.Qty;
+    if (p && p[r.Product]) predMap[m] += p[r.Product] * r.Qty;
+  }
+  /* 官方業績 by month (2026) */
+  const finMap = {};
+  for (const f of rawData.finance) {
+    const m = f['日期'] ? f['日期'].slice(0, 7) : '';
+    if (!m.startsWith('2026')) continue;
+    if (!finMap[m]) finMap[m] = 0;
+    finMap[m] += f['業績'];
   }
   const months = [];
   for (let i = 1; i <= 12; i++) months.push(`2026-${String(i).padStart(2, '0')}`);
-  const values = months.map(m => monthMap[m] || 0);
-  const cumValues = []; let cum = 0;
-  for (const v of values) { cum += v; cumValues.push(cum); }
+  const predValues = months.map(m => predMap[m] || 0);
+  const finValues = months.map(m => finMap[m] || 0);
+  const cumPred = []; let cp = 0;
+  for (const v of predValues) { cp += v; cumPred.push(cp); }
+  const cumFin = []; let cf = 0;
+  for (const v of finValues) { cf += v; cumFin.push(cf); }
 
-  const targetArr = rawData.target && Array.isArray(rawData.target.monthly)
-    ? rawData.target.monthly
-    : MOCK_TARGET.monthly;
-  // 月目標值（作為 markLine 參考）
+  const targetArr = rawData.target && Array.isArray(rawData.target.monthly) ? rawData.target.monthly : MOCK_TARGET.monthly;
   const monthlyTargetValues = targetArr.slice(0, 12);
-  // 累積目標線
-  const cumTargetValues = [];
-  let cumTarget = 0;
-  for (let i = 0; i < 12; i++) { cumTarget += targetArr[i] || 0; cumTargetValues.push(cumTarget); }
+  const cumTargetValues = []; let ct = 0;
+  for (let i = 0; i < 12; i++) { ct += targetArr[i] || 0; cumTargetValues.push(ct); }
 
+  const dotStyle = { symbol: 'circle', symbolSize: 6 };
   charts.yearPred.setOption({
     backgroundColor: 'transparent',
     grid: { left: 70, right: 70, top: 50, bottom: 30 },
-    legend: { data: ['月 Pred', '月目標', '累積', '累積目標'], textStyle: { color: '#666' }, top: 4 },
-    xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11, color: '#666' }, axisLine: { lineStyle: { color: '#222' } } },
+    legend: { data: ['月 Pred', '月官方', '月目標', '累積 Pred', '累積官方', '累積目標'], textStyle: { color: '#aaa', fontSize: 10 }, top: 4 },
+    xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11, color: '#aaa' }, axisLine: { lineStyle: { color: '#333' } } },
     yAxis: [
-      { type: 'value', name: 'Pred', axisLabel: { formatter: v => fmtMoney(v), color: '#666' }, splitLine: { lineStyle: { color: '#1a1a1a' } } },
-      { type: 'value', name: '累積', position: 'right', axisLabel: { formatter: v => fmtMoney(v), color: '#666' }, splitLine: { show: false } }
+      { type: 'value', name: '月', axisLabel: { formatter: v => fmtK(v), color: '#aaa' }, splitLine: { lineStyle: { color: '#1a1a1a' } } },
+      { type: 'value', name: '累積', position: 'right', axisLabel: { formatter: v => fmtK(v), color: '#aaa' }, splitLine: { show: false } }
     ],
     series: [
-      { name: '月 Pred', type: 'bar', data: values, itemStyle: { color: COLORS['06瓶'] } },
-      { name: '月目標', type: 'line', data: monthlyTargetValues, lineStyle: { color: '#666', width: 1, type: 'dotted' }, itemStyle: { color: '#666' }, symbol: 'none' },
-      { name: '累積', type: 'line', yAxisIndex: 1, data: cumValues, smooth: true, lineStyle: { color: '#FF5722', width: 2 }, itemStyle: { color: '#FF5722' } },
-      { name: '累積目標', type: 'line', yAxisIndex: 1, data: cumTargetValues, lineStyle: { color: '#fff', width: 1, type: 'dashed' }, itemStyle: { color: '#fff' }, symbol: 'none' }
+      { name: '月 Pred', type: 'bar', data: predValues, itemStyle: { color: COLORS['06瓶'] }, barGap: '10%' },
+      { name: '月官方', type: 'bar', data: finValues, itemStyle: { color: '#76FF03' }, barGap: '10%' },
+      { name: '月目標', type: 'line', data: monthlyTargetValues, lineStyle: { color: '#aaa', width: 1, type: 'dashed' }, itemStyle: { color: '#aaa' }, ...dotStyle },
+      { name: '累積 Pred', type: 'line', yAxisIndex: 1, data: cumPred, smooth: true, lineStyle: { color: '#FF5722', width: 2 }, itemStyle: { color: '#FF5722' }, ...dotStyle },
+      { name: '累積官方', type: 'line', yAxisIndex: 1, data: cumFin, smooth: true, lineStyle: { color: '#76FF03', width: 2 }, itemStyle: { color: '#76FF03' }, ...dotStyle },
+      { name: '累積目標', type: 'line', yAxisIndex: 1, data: cumTargetValues, lineStyle: { color: '#fff', width: 1, type: 'dashed' }, itemStyle: { color: '#fff' }, ...dotStyle }
     ],
     tooltip: {
       trigger: 'axis',
-      formatter: params => params.map(p => `${p.seriesName}: ${fmtMoney(p.value)}`).join('<br>'),
+      formatter: params => params.map(p => `${p.seriesName}: ${fmtK(p.value)}`).join('<br>'),
+      backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' }
+    }
+  }, true);
+}
+
+/* ===== 官方業績月趨勢（全年含 2025） ===== */
+function renderOfficialMonthly() {
+  if (!charts.officialMonthly) return;
+  /* 所有月份的官方業績 */
+  const finMap = {};
+  for (const f of rawData.finance) {
+    const m = f['日期'] ? f['日期'].slice(0, 7) : '';
+    if (!m) continue;
+    if (!finMap[m]) finMap[m] = 0;
+    finMap[m] += f['業績'];
+  }
+  const allMonths = Object.keys(finMap).sort();
+  const finValues = allMonths.map(m => finMap[m] || 0);
+  /* 月目標（2025 用 TARGET_2025，2026 用 rawData.target） */
+  const targetArr2026 = rawData.target && Array.isArray(rawData.target.monthly) ? rawData.target.monthly : MOCK_TARGET.monthly;
+  const targetValues = allMonths.map(m => {
+    const idx = parseInt(m.split('-')[1]) - 1;
+    if (m.startsWith('2026')) return targetArr2026[idx] || 0;
+    if (m.startsWith('2025')) return TARGET_2025.monthly[idx] || 0;
+    return 0;
+  });
+
+  charts.officialMonthly.setOption({
+    backgroundColor: 'transparent',
+    grid: { left: 70, right: 20, top: 40, bottom: 30 },
+    legend: { data: ['官方業績', '月目標'], textStyle: { color: '#aaa', fontSize: 11 }, top: 4 },
+    xAxis: { type: 'category', data: allMonths, axisLabel: { fontSize: 11, color: '#aaa' }, axisLine: { lineStyle: { color: '#333' } } },
+    yAxis: { type: 'value', axisLabel: { formatter: v => fmtK(v), color: '#aaa' }, splitLine: { lineStyle: { color: '#1a1a1a' } } },
+    series: [
+      { name: '官方業績', type: 'bar', data: finValues, itemStyle: { color: '#76FF03' }, label: { show: true, position: 'top', color: '#aaa', fontSize: 10, formatter: p => p.value > 0 ? fmtK(p.value) : '' } },
+      { name: '月目標', type: 'line', data: targetValues, lineStyle: { color: '#aaa', width: 1, type: 'dashed' }, itemStyle: { color: '#aaa' }, symbol: 'circle', symbolSize: 5 }
+    ],
+    tooltip: {
+      trigger: 'axis',
+      formatter: params => params.map(p => `${p.seriesName}: ${fmtK(p.value)}`).join('<br>'),
       backgroundColor: '#1a1a1a', borderColor: '#333', textStyle: { color: '#f0f0f0' }
     }
   }, true);
@@ -1689,6 +1811,9 @@ function render() {
   const filtered = filterData(rawData, state);
   updateFilterSummary();
   updateResetBar();
+  /* nav reset 按鈕顯示/隱藏 */
+  const navResetBtn = document.getElementById('navReset');
+  if (navResetBtn) navResetBtn.style.display = isFiltered() ? 'inline-block' : 'none';
   renderHero(filtered);
   renderMonthlyRings();
   renderKPI(filtered);
@@ -1698,6 +1823,7 @@ function render() {
   renderClientRank(filtered);
   renderTable(filtered);
   renderYearPred();
+  renderOfficialMonthly();
 }
 
 /* ===== 載入資料 ===== */
