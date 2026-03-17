@@ -5,8 +5,15 @@ repo: stompsid-lgtm/dashboard-pwa（private）
 purpose: 北3區業績 Dashboard PWA — 週/月收檢量、Pred 業績（price × qty）vs 官方業績
 tech: Single-File PWA | Vanilla JS | Apache ECharts v5 CDN | 無框架無後端
 design: Brutalist Signal（v2, 2026-03-16 定案）
+version: v2.4.0
 initial: 2026-03-07
 </meta>
+
+<rules label="版本控制">
+VERSION-BUMP:
+  trigger: 任何改動 index.html 並 commit 時
+  action: 同步更新 index.html 的 VERSION 常數（patch/minor/major 視改動幅度）
+</rules>
 
 <conn label="精確保留 | 禁壓縮">
 
