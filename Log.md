@@ -1,5 +1,10 @@
 # 開發日誌
 
+## 2026-03-20 v2.5.3
+- 新增「工具」Mini Apps 區（底部 section）
+- 加入第一個 mini app：PLT 出貨時程表（https://plt-delivery-schedule.pages.dev/）
+- sw.js cache bump v2.5.3
+
 ## 2026-03-07
 - 建立專案目錄與 git 初始化
 - 建立 PWA manifest.json（深色主題、zh-Hant）

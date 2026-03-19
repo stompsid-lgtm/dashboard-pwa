@@ -628,6 +628,38 @@ a { color: var(--cyan); }
   .charts-secondary { grid-template-columns: 1fr; }
   .desktop-only { display: none !important; }
 }
+
+/* ===== Mini Apps ===== */
+.mini-apps-section {
+  padding: 0 clamp(16px, 3vw, 40px) clamp(24px, 3vw, 40px);
+}
+.mini-apps-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+.mini-app-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.mini-app-card:hover {
+  border-color: var(--signal);
+  background: var(--bg-card);
+  color: var(--text);
+}
+.mini-app-icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; }
+.mini-app-info { display: flex; flex-direction: column; gap: 2px; }
+.mini-app-name { font-size: var(--caption); font-weight: 700; color: var(--text); white-space: nowrap; }
+.mini-app-desc { font-size: var(--micro); color: var(--text-muted); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -806,9 +838,27 @@ a { color: var(--cyan); }
   </div>
 </section>
 
+<!-- ===== Mini Apps ===== -->
+<section class="mini-apps-section">
+  <div class="chart-block reveal" style="margin-bottom:0">
+    <div class="chart-block-header">
+      <div class="chart-block-title">工具</div>
+    </div>
+    <div class="mini-apps-grid">
+      <a class="mini-app-card" href="https://plt-delivery-schedule.pages.dev/" target="_blank" rel="noopener">
+        <span class="mini-app-icon">🚛</span>
+        <div class="mini-app-info">
+          <span class="mini-app-name">PLT 出貨時程表</span>
+          <span class="mini-app-desc">出貨排程查詢</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
 <script>
 /* ===== 常數 ===== */
-const VERSION = 'v2.5.2';
+const VERSION = 'v2.5.3';
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbyNJdH5wEM4B2Yob_CFeSbP7zzCGChE60CQ2BQ-W-BcWGRSAFYpkonbkfFeCjTc8PA2/exec';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 分鐘自動刷新
 const PRODUCTS = ['06瓶', '10瓶', '20瓶', 'PLTgel'];
